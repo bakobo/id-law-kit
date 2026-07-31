@@ -75,18 +75,40 @@ class CorpusStore:
             bytes=len(raw),
         )
 
-    def read(self, item_id: str, suffix: str = ".txt") -> str:
-        path = self.path_for(item_id, suffix)
-        if not path.exists():
+    def resolve(self, item_id: str, suffix: str = None) -> Path:
+        """The stored file for `item_id`, whatever suffix it was written under.
+
+        A corpus can mix suffixes — eidas-eudi stores EUR-Lex text as `.txt` and ARF documents as
+        `.md`. Callers that assume one suffix get an empty result rather than an error, and an
+        empty result from a search reads as a finding.
+        """
+        if suffix is not None:
+            path = self.path_for(item_id, suffix)
+            if not path.exists():
+                raise StoreError(
+                    f"No corpus file for '{item_id}' at {path}. Run this repo's fetcher to "
+                    f"retrieve it."
+                )
+            return path
+        matches = sorted(self.root.glob(f"{_safe_id(item_id)}.*.gz")) if self.root.exists() else []
+        if not matches:
             raise StoreError(
-                f"No corpus file for '{item_id}' at {path}. Run this repo's fetcher to retrieve it."
+                f"No corpus file for '{item_id}' under {self.root} (any suffix). Run this repo's "
+                f"fetcher to retrieve it."
             )
-        return gzip.decompress(path.read_bytes()).decode("utf-8", "replace")
+        return matches[0]
 
-    def exists(self, item_id: str, suffix: str = ".txt") -> bool:
-        return self.path_for(item_id, suffix).exists()
+    def read(self, item_id: str, suffix: str = None) -> str:
+        return gzip.decompress(self.resolve(item_id, suffix).read_bytes()).decode("utf-8", "replace")
 
-    def verify(self, item_id: str, sha256: str, suffix: str = ".txt") -> bool:
+    def exists(self, item_id: str, suffix: str = None) -> bool:
+        try:
+            self.resolve(item_id, suffix)
+            return True
+        except StoreError:
+            return False
+
+    def verify(self, item_id: str, sha256: str, suffix: str = None) -> bool:
         """Does the stored text still hash to what the manifest recorded?
 
         Raises if the file is absent — a missing corpus file and a corrupted one are different
@@ -95,8 +117,9 @@ class CorpusStore:
         raw = self.read(item_id, suffix).encode("utf-8")
         return hashlib.sha256(raw).hexdigest() == str(sha256).strip().lower()
 
-    def item_ids(self, suffix: str = ".txt") -> list:
+    def item_ids(self, suffix: str = None) -> list:
+        """Every stored item_id, across all suffixes unless one is named."""
         if not self.root.exists():
             return []
-        tail = f"{suffix}.gz"
-        return sorted(p.name[: -len(tail)] for p in self.root.glob(f"*{tail}"))
+        pattern = f"*{suffix}.gz" if suffix else "*.*.gz"
+        return sorted({p.name.rsplit(".", 2)[0] for p in self.root.glob(pattern)})

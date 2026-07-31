@@ -106,3 +106,44 @@ class TestItemIds:
 
     def test_lists_nothing_when_the_directory_does_not_exist(self, tmp_path):
         assert CorpusStore(tmp_path / "never-created").item_ids() == []
+
+
+class TestSuffixResolution:
+    """A corpus may hold more than one suffix.
+
+    eidas-eudi stores EUR-Lex instruments as .txt and ARF documents as .md in sibling corpora.
+    Anything that resolves an item_id must find it without being told the suffix — otherwise a
+    search silently returns zero hits, which reads as a finding rather than as a bug.
+    """
+
+    def test_finds_a_file_whatever_its_suffix(self, store):
+        store.write("a", TEXT, suffix=".md")
+        assert store.resolve("a").name == "a.md.gz"
+
+    def test_read_without_a_suffix_finds_the_md_file(self, store):
+        store.write("a", TEXT, suffix=".md")
+        assert store.read("a") == TEXT
+
+    def test_exists_without_a_suffix_finds_the_md_file(self, store):
+        store.write("a", TEXT, suffix=".md")
+        assert store.exists("a") is True
+
+    def test_item_ids_lists_every_suffix(self, store):
+        store.write("a", TEXT, suffix=".md")
+        store.write("b", TEXT)
+        assert store.item_ids() == ["a", "b"]
+
+    def test_an_explicit_suffix_still_wins(self, store):
+        store.write("a", TEXT, suffix=".md")
+        store.write("a", "different\n", suffix=".txt")
+        assert store.read("a", suffix=".txt") == "different\n"
+
+    def test_resolve_of_a_missing_item_raises(self, store):
+        with pytest.raises(StoreError):
+            store.resolve("absent")
+
+    def test_an_explicit_suffix_that_is_absent_names_the_exact_path(self, store):
+        store.write("a", TEXT, suffix=".md")
+        with pytest.raises(StoreError) as e:
+            store.read("a", suffix=".txt")
+        assert "a.txt.gz" in str(e.value)
