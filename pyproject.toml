@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Bakobo" }]
-dependencies = []
+dependencies = ["defusedxml>=0.7"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-cov>=5"]

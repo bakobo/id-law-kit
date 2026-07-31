@@ -55,12 +55,23 @@ lawcorpus/validity.py      the validity + authority vocabularies, and the quote 
 lawcorpus/manifest.py      one manifest schema: read, write, validate
 lawcorpus/store.py         gzip corpus store — write-with-hash, read, verify
 lawcorpus/cite.py          the citation primitive; quotes never print without a validity banner
-lawcorpus/sweep.py         phrase-family sweeps across a corpus
+lawcorpus/formex.py        Formex XML -> citable text (articles, recitals, paragraph numbering)
 lawcorpus/fetch/eurlex.py  EUR-Lex / Cellar fetcher, shared by eu-data-law and eidas-eudi
 docs/method.md             how the research is done — read before adding to any corpus repo
 docs/taxonomy.md           the duty taxonomy and the authority ladder
 docs/questions.md          the shared question spine, so findings are comparable across regimes
 ```
+
+## One thing that will cost you a day if you don't know it
+
+EUR-Lex's metadata notices carry **no operative text**. `Accept: application/xml;notice=branch`
+returns 1.8 MB for the GDPR and looks like a full document; it is a bibliographic tree with not one
+article in it. The text arrives only under `Accept: application/zip;mtype=fmx4`, as a zip whose
+larger member is Formex XML — and that zip contains a second, tiny `.doc.xml` descriptor which also
+parses cleanly and also contains no law.
+
+`EurLexFetcher.fetch_formex()` handles both traps. `Accept-Language` is mandatory on every request;
+omitting it returns HTTP 400 with a plain-text explanation.
 
 ## The manifest
 

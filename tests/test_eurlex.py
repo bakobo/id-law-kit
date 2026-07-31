@@ -205,3 +205,72 @@ class TestAgainstTheRealCellar:
         doc = EurLexFetcher().fetch("32016R0679")
         assert doc.body.startswith(b"<")
         assert len(doc.body) > 100_000
+
+
+class TestFetchFormex:
+    """The route that actually yields text.
+
+    The notices are metadata. Only `mtype=fmx4` carries the operative provisions, and it arrives
+    as a zip with two members: a small `.doc.xml` descriptor and the document body. Picking the
+    wrong member gives you 1.6 KB of bibliographic data that parses fine and says nothing.
+    """
+
+    def _zip(self, members):
+        import io
+        import zipfile
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            for name, body in members.items():
+                z.writestr(name, body)
+        return buf.getvalue()
+
+    def test_requests_the_formex_zip(self, transport):
+        transport.default = (
+            200,
+            self._zip({"L_x.doc.xml": "<DOC/>", "L_x.xml": "<ACT>body</ACT>"}),
+            "application/zip",
+        )
+        EurLexFetcher(transport=transport).fetch_formex("32016R0679")
+        assert transport.calls[0]["headers"]["Accept"] == ACCEPT_FORMEX_ZIP
+
+    def test_returns_the_document_body_not_the_descriptor(self, transport):
+        transport.default = (
+            200,
+            self._zip({"L_x.doc.xml": "<DOC/>", "L_x.xml": "<ACT>body</ACT>"}),
+            "application/zip",
+        )
+        doc = EurLexFetcher(transport=transport).fetch_formex("32016R0679")
+        assert doc.body == b"<ACT>body</ACT>"
+
+    def test_picks_the_largest_member_when_names_do_not_disambiguate(self, transport):
+        transport.default = (
+            200,
+            self._zip({"a.xml": "<ACT>tiny</ACT>", "b.xml": "<ACT>" + "x" * 500 + "</ACT>"}),
+            "application/zip",
+        )
+        assert b"x" * 500 in EurLexFetcher(transport=transport).fetch_formex("32016R0679").body
+
+    def test_a_body_that_is_not_a_zip_is_a_clear_error(self, transport):
+        # Omitting Accept-Language returns a plain-text explanation, not a document. The fetcher
+        # always sends it, but a proxy or a future API change could still produce this.
+        transport.default = (200, b"Missing/Invalid accept language: 'null'", "text/plain")
+        with pytest.raises(EurLexError) as e:
+            EurLexFetcher(transport=transport).fetch_formex("32016R0679")
+        assert "zip" in str(e.value).lower()
+
+    def test_a_zip_with_no_xml_member_says_so(self, transport):
+        transport.default = (200, self._zip({"readme.txt": "hello"}), "application/zip")
+        with pytest.raises(EurLexError) as e:
+            EurLexFetcher(transport=transport).fetch_formex("32016R0679")
+        assert "readme.txt" in str(e.value)
+
+
+@pytest.mark.network
+class TestFormexAgainstTheRealCellar:
+    def test_the_gdpr_comes_back_with_its_99_articles(self):
+        from lawcorpus.formex import articles, recitals
+
+        body = EurLexFetcher().fetch_formex("32016R0679").body
+        assert len(articles(body)) == 99
+        assert len(recitals(body)) == 173

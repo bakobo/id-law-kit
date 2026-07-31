@@ -2,18 +2,20 @@
 
 The EU publishes its law through a content-negotiated resource API that needs no registration —
 a far better position than `utah-id-law`, which had to recover its endpoints by reading a React
-bundle. Verified working 2026-07-31:
+bundle. Verified working 2026-07-31, all requiring `Accept-Language`:
 
-    curl -H 'Accept: application/xml;notice=branch' -H 'Accept-Language: eng' \\
-         http://publications.europa.eu/resource/celex/32016R0679      # 1.8 MB, the full text
-    curl -H 'Accept: application/zip;mtype=fmx4' ...                  # 90 KB, Formex source
-    curl -H 'Accept: application/xml;notice=object' ...               # 7 KB, metadata only
+    Accept: application/zip;mtype=fmx4     ->  90 KB   THE TEXT (zipped Formex XML)
+    Accept: application/xml;notice=branch  ->  1.8 MB  metadata, relations, provenance — NO text
+    Accept: application/xml;notice=object  ->  7 KB    metadata only
 
-Two traps worth knowing before you use this:
+Three traps worth knowing before you use this:
 
-1. **`Accept: text/html` returns 404 on this host.** The HTML rendering lives on
-   `eur-lex.europa.eu/legal-content/...` instead. A 404 here usually means a wrong Accept header,
-   not a wrong CELEX — which is why the error says both.
+0. **The notices contain no operative text.** `notice=branch` is 1.8 MB and looks like a full
+   document; it is a bibliographic tree. Only `mtype=fmx4` carries the articles. Use
+   `fetch_formex()`, and see `lawcorpus/formex.py`.
+1. **`Accept: text/html` returns 404, and a missing `Accept-Language` returns 400.** The HTML
+   rendering lives on `eur-lex.europa.eu/legal-content/...` instead. A 404 here often means a
+   wrong Accept header rather than a wrong CELEX — which is why the error says both.
 2. **Original vs. consolidated text.** `32016R0679` is the GDPR *as published in 2016*;
    `02016R0679-20160504` is a consolidated version incorporating later amendments. For an
    instrument amended more than once, quoting the original is simply wrong. The corpus therefore
@@ -23,8 +25,10 @@ Two traps worth knowing before you use this:
 
 from __future__ import annotations
 
+import io
 import json
 import re
+import zipfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -192,3 +196,41 @@ class EurLexFetcher:
                 f"as an error object."
             ) from e
         return [{k: v.get("value") for k, v in row.items()} for row in bindings]
+
+    def fetch_formex(self, celex) -> EurLexDocument:
+        """Retrieve the **text** of an instrument as Formex XML.
+
+        This is the method you almost always want. `fetch()` defaults to a metadata notice, which
+        is useful for provenance and useless for quoting.
+
+        Cellar serves Formex as a zip with two members: a small `.doc.xml` bibliographic
+        descriptor and the document body. Both parse as XML, so picking the wrong one yields
+        1.6 KB of metadata that looks like a successful extraction and contains no law.
+        """
+        doc = self.fetch(celex, accept=ACCEPT_FORMEX_ZIP)
+        try:
+            archive = zipfile.ZipFile(io.BytesIO(doc.body))
+            names = archive.namelist()
+        except zipfile.BadZipFile as e:
+            preview = doc.body[:120].decode("utf-8", "replace")
+            raise EurLexError(
+                f"The Formex response for {doc.celex} is not a zip archive: {e}. The body starts "
+                f"'{preview}'. Cellar answers 200 with a plain-text explanation for some malformed "
+                f"requests, so read that text before assuming the CELEX is wrong."
+            ) from e
+
+        bodies = [n for n in names if n.lower().endswith(".xml") and not n.lower().endswith(".doc.xml")]
+        if not bodies:
+            raise EurLexError(
+                f"The Formex archive for {doc.celex} has no document body. Its members are: "
+                f"{', '.join(names)}. Expected an .xml member that is not the .doc.xml descriptor."
+            )
+        # More than one candidate happens for acts published with annexes; the body is the
+        # largest member, and the descriptor is always tiny.
+        chosen = max(bodies, key=lambda n: archive.getinfo(n).file_size)
+        return EurLexDocument(
+            celex=doc.celex,
+            url=doc.url,
+            body=archive.read(chosen),
+            media_type="application/xml;type=fmx4",
+        )
