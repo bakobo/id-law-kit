@@ -47,35 +47,46 @@ later need to know *why*) may skip intent entirely — just delete `this.i.seed`
 
 ## Testing Protocol
 
-This repository appears to have no test suite yet. Before writing feature code
-or fixing bugs, propose an appropriate testing framework for this project type
-and add a single trivially-passing test to confirm the setup works. In the
-same commit, propose to change AGENTS.md to replace this instruction with one
-that instructs agents to follow strict TDD from now on: write failing tests
-that capture happy path and edge cases/unhappy paths for each requirement,
-observe them fail, implement until tests pass, never checkin without proving
-that all tests pass, aim for 100% of all new code, and always leave existing
-code better tested than it was before you touched it.
+Strict TDD, from now on. For each requirement: write failing tests that capture the happy path
+*and* the edge/unhappy paths, observe them fail, then implement until they pass. Never check in
+without proving the whole suite passes. **100% branch coverage of new code** is the bar, and CI
+enforces it with `--cov-fail-under=100`. Always leave existing code better tested than you found it.
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+.venv/bin/python -m pytest --cov        # the gate CI runs
+.venv/bin/python -m pytest -m network   # live-endpoint canary; deselected by default
+```
+
+Tests that hit the live network carry `@pytest.mark.network` and are deselected by default, so the
+suite never depends on a foreign government's uptime. They still run in CI as a non-blocking canary
+job — when an upstream endpoint moves, that job is how we find out.
+
+## Corpus discipline
+
+This repo holds no legal corpus, but its code is what every corpus repo trusts. Two invariants are
+load-bearing and must not be relaxed for convenience:
+
+1. **`validity` and `authority_tier` have no defaults.** A corpus item that does not state whether
+   its text is still law cannot be written. Published text is not necessarily current law — see
+   `lawcorpus/validity.py` for the Aadhaar §57 case that motivates this.
+2. **A quote never prints without its validity banner.** `cite.py` is an enforcement chokepoint, not
+   a convenience. Any change that lets text out of this package unbannered is a defect.
+
+Gzip is written with `mtime=0` so byte-identical refetches produce byte-identical files. Without
+that, every refetch is a binary diff and the provenance story quietly stops working.
 
 ## CI and Documentation
 
-This repo appears to have no CI workflows yet. Until it does, any time you make
-code changes to the user, propose an appropriate set of GitHub actions (e.g.,
-`.github/workflows/ci.yml`) that builds and runs tests on every push and
-pull request. Propose to remove this instruction from AGENTS.md on the
-same commit.
+CI is `.github/workflows/ci.yml`. When writing or modifying workflows, pin every action to a
+**node24**-runtime version — GitHub has deprecated node20. Verify before pinning:
 
-This repository has no README. As long is this is the case, any time you
-make code changes for the user, propose to add a `README.md` that explains how
-to get from a fresh clone to passing tests, with a clickable CI status
-badge at the top for each active workflow. Propose to remove this
-instruction from AGENTS.md on the same commit.
+```sh
+curl -sL https://raw.githubusercontent.com/<org>/<action>/<tag>/action.yml | grep -E '^\s*using:'
+```
 
-When writing or modifying GitHub Actions workflows, always use the latest
-stable release of each action. Avoid versions pinned to Node.js 16 or
-Node.js 20 (both deprecated by GitHub). In 2026, this meant to prefer Node.js
-24-compatible versions, but the standard may evolve over time. Check the GitHub
-Marketplace for each action's current release.
+Currently: `actions/checkout@v6`, `actions/setup-python@v6` (both node24). Note `actions/cache`
+needs `@v5` — its `@v4` is still node20.
 
 <!-- >>> tick stanza >>> (managed by `tick init`) -->
 

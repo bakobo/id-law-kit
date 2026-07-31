@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      # Action versions are pinned to node24 runtimes; node20 is deprecated.
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install -e '.[dev]'
+
+      - name: Test with branch coverage
+        # 100% of new code is the standing bar (AGENTS.md). The network-marked test is
+        # deselected by default so CI does not depend on Brussels being up.
+        run: python -m pytest --cov --cov-fail-under=100
+
+  live-sources:
+    # The corpus repos are worthless if the upstream endpoints move. This job is the canary:
+    # it is allowed to fail without blocking a merge, but a failure means a fetcher needs work.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: pip install -e '.[dev]'
+
+      - name: Check the live EUR-Lex endpoints still answer
+        run: python -m pytest -m network

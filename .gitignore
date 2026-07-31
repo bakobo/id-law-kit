@@ -1,8 +1,9 @@
 /.tick
 .tick.lock
-
-# Rendered doc artifacts are derived from the markdown next to them; the
-# markdown is the only tracked source of truth. Render into docs/, never the root.
-# See dev/standards/repo-layout.md, "Rendered doc artifacts".
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
 docs/**/*.pdf
 docs/**/*.html

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lawcorpus"
+version = "0.1.0"
+description = "Corpus, manifest, and citation tooling for the Bakobo identity-law research repos"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Bakobo" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5"]
+
+[project.scripts]
+lawcite = "lawcorpus.cite:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lawcorpus"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -m 'not network'"
+markers = ["network: hits the live network; deselected by default"]
+
+[tool.coverage.run]
+branch = true
+source = ["lawcorpus"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
