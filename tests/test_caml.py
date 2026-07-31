@@ -110,3 +110,22 @@ class TestCamlEdges:
             "<p><i>Italic opener.</i></p></caml:Content>"
         )
         assert "Italic opener." in to_text(doc)
+
+
+class TestHeadingIsNotASentence:
+    def _doc(self, body):
+        return (
+            '<caml:Content xmlns:caml="http://lc.ca.gov/legalservices/schemas/caml.1#">'
+            f"<p>{body}</p></caml:Content>"
+        )
+
+    def test_a_sentence_is_not_a_heading(self):
+        # Cal. Civ. Code § 1798.194 opens straight into operative text.
+        assert heading(self._doc("This title shall be liberally construed to effectuate its purposes.")) == ""
+
+    def test_a_real_heading_survives(self):
+        title = "General Duties of Businesses that Collect Personal Information"
+        assert heading(self._doc(title)) == title
+
+    def test_an_overlong_opener_is_not_a_heading(self):
+        assert heading(self._doc("Word " * 40)) == ""

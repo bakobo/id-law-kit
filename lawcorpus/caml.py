@@ -23,8 +23,12 @@ from .formex import _TYPOGRAPHY_TABLE
 
 _MULTISPACE = re.compile(r"[ \t]{2,}")
 _BLANKS = re.compile(r"\n{3,}")
-# A heading is a short opening paragraph that is not itself a numbered subdivision.
+# A heading is a short opening paragraph that is not a numbered subdivision and does not read as
+# a sentence. California uses genuine headings for some sections ("General Duties of Businesses
+# that Collect Personal Information") and none for others, where the section opens straight into
+# operative text ("This title shall be liberally construed to effectuate its purposes.").
 _SUBDIVISION = re.compile(r"^\(\w+\)")
+_HEADING_MAX_CHARS = 120
 
 
 class CamlError(LawcorpusError):
@@ -87,4 +91,10 @@ def heading(source) -> str:
     paras = _paragraphs(_parse(source))
     if not paras or _SUBDIVISION.match(paras[0]):
         return ""
-    return paras[0]
+    first = paras[0]
+    # A sentence is operative text, not a title. Headings do not end in a full stop, and are
+    # short. Getting this wrong puts sentence fragments in the manifest's title column, which is
+    # where an instrument name belongs.
+    if first.endswith(".") or len(first) > _HEADING_MAX_CHARS:
+        return ""
+    return first
