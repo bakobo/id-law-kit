@@ -121,11 +121,25 @@ def _render(node, out):
         out.append(node.tail)
 
 
+# Typographic characters that defeat a literal search while looking identical on screen.
+# Deliberately narrow: only characters whose *only* function is layout. Curly quotes, en dashes
+# and ellipses are left alone — they are visible, so a reader can search for what they see, and
+# in EU drafting the quotes mark defined terms.
+_TYPOGRAPHY = {
+    "\u00a0": " ",  # NO-BREAK SPACE — inside "Article 22", 232x in C-634/21 alone
+    "\u202f": " ",  # NARROW NO-BREAK SPACE
+    "\u2007": " ",  # FIGURE SPACE
+    "\u2011": "-",  # NON-BREAKING HYPHEN — inside case numbers like "C-311/18"
+    "\u00ad": "",   # SOFT HYPHEN — invisible, splits words mid-token
+}
+_TYPOGRAPHY_TABLE = str.maketrans(_TYPOGRAPHY)
+
+
 def _clean(raw: str) -> str:
     # Source XML wraps mid-sentence for readability. Left alone, those newlines split phrases
     # and defeat a line-oriented search for "processed lawfully, fairly and in a transparent
     # manner" — which is exactly the kind of phrase a sweep looks for.
-    text = raw.replace("\r\n", "\n")
+    text = raw.replace("\r\n", "\n").translate(_TYPOGRAPHY_TABLE)
     # Strip indentation off both sides of every newline FIRST, so the mid-sentence test below
     # sees the real next character rather than the XML's leading whitespace.
     text = _WS.sub("\n", text)

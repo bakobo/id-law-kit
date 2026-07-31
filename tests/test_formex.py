@@ -178,3 +178,40 @@ class TestFormexOddities:
 
     def test_an_article_with_neither_title_nor_identifier_is_not_a_crash(self):
         assert articles("<ACT><ARTICLE><P>Text.</P></ARTICLE></ACT>")[0].number == ""
+
+
+class TestTypographicNormalisation:
+    """EU documents are typeset, not typed.
+
+    'Article 22' in a CJEU judgment contains U+00A0 between the word and the number — 232 times in
+    C-634/21 alone — and case numbers use U+2011 non-breaking hyphen, so 'C-311/18' does not match
+    'C‑311/18'. Left alone, a sweep for 'Article 22' returns zero hits and reads as a finding.
+    That is the same class of defect the utah-id-law adversarial review caught in its own sweep
+    patterns on 2026-07-29, and it is worse here because it is invisible on screen.
+    """
+
+    def test_no_break_space_becomes_an_ordinary_space(self):
+        doc = "<ACT><ARTICLE><TI.ART>Article 1</TI.ART><P>See Article 22(1).</P></ARTICLE></ACT>"
+        assert "Article 22(1)" in to_text(doc)
+
+    def test_non_breaking_hyphen_becomes_an_ordinary_hyphen(self):
+        doc = "<ACT><ARTICLE><TI.ART>Article 1</TI.ART><P>Case C‑311/18.</P></ARTICLE></ACT>"
+        assert "C-311/18" in to_text(doc)
+
+    def test_narrow_no_break_space_is_normalised_too(self):
+        doc = "<ACT><ARTICLE><TI.ART>Article 1</TI.ART><P>See Article 5.</P></ARTICLE></ACT>"
+        assert "Article 5" in to_text(doc)
+
+    def test_soft_hyphens_are_removed(self):
+        doc = "<ACT><ARTICLE><TI.ART>Article 1</TI.ART><P>pro­cessing</P></ARTICLE></ACT>"
+        assert "processing" in to_text(doc)
+
+    def test_curly_quotes_are_preserved(self):
+        # These carry meaning in EU drafting — defined terms are wrapped in them — and unlike a
+        # no-break space they are visible, so a reader can search for what they see.
+        doc = "<ACT><ARTICLE><TI.ART>Article 1</TI.ART><P>the ‘Charter’</P></ARTICLE></ACT>"
+        assert "‘Charter’" in to_text(doc)
+
+    def test_en_dashes_are_preserved(self):
+        doc = "<ACT><ARTICLE><TI.ART>Article 1</TI.ART><P>2016–2018</P></ARTICLE></ACT>"
+        assert "2016–2018" in to_text(doc)

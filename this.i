@@ -68,3 +68,23 @@ Shared method and tooling for the identity-law corpus programme = goal:
         (one extra call per CELEX) but the analysis — we cannot read a French divergence we do not
         have the competence to weigh, so archiving it would produce false assurance. Tradeoff: any
         finding that turns on a term of art is weaker than it looks, and must say so.
+
+    Layout-only characters are normalised out of stored text = decision:
+      id: f5mvj6
+      why: >
+        EU documents are typeset rather than typed: "Article 22" contains U+00A0 NO-BREAK SPACE
+        between the word and the number (232 occurrences in judgment C-634/21 alone), and case
+        numbers use U+2011 NON-BREAKING HYPHEN, so a search for "C-311/18" matches nothing. Both
+        are invisible on screen, so a sweep returns zero hits and reads as a finding rather than
+        as a bug — the same class of defect the utah-id-law adversarial review found in its own
+        sweep patterns on 2026-07-29, but harder to see. Chose to normalise these to their plain
+        equivalents at extraction, over the purer alternative of storing bytes verbatim and
+        normalising in the search layer. Verbatim storage would keep `rg -z` over the raw corpus
+        working the way utah-id-law advertises it, and that is a real loss. It was outweighed by
+        the failure mode: a false negative in a sweep is silent, and this corpus exists to support
+        negative claims ("the law nowhere requires X") that a silent false negative would
+        fabricate. The set is deliberately narrow — only characters whose sole function is layout.
+        Curly quotes, en dashes, and ellipses are preserved, because they are visible and because
+        EU drafting uses the quotes to mark defined terms. Tradeoff: the stored text is not a
+        byte-exact copy of what Cellar served, so the manifest's sha256 attests to our extraction
+        rather than to the EU's file, and anyone needing the original bytes must refetch.
