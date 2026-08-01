@@ -60,7 +60,7 @@ lawcorpus/caml.py          CAML XML -> citable text (California codified section
 lawcorpus/pdf.py           PDF -> citable text via poppler, with running-furniture removal
 lawcorpus/fetch/eurlex.py  EUR-Lex / Cellar fetcher, shared by eu-data-law and eidas-eudi
 docs/method.md             how the research is done — read before adding to any corpus repo
-docs/taxonomy.md           the duty taxonomy and the authority ladder
+docs/taxonomy.md           the duty taxonomy, the authority ladder, the validity vocabulary
 docs/questions.md          the shared question spine, so findings are comparable across regimes
 ```
 
