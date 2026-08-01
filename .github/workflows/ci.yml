@@ -23,6 +23,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install poppler
+        # lawcorpus/pdf.py shells out to pdftotext; the PDF tests skip without it, which would
+        # quietly drop coverage below the gate rather than failing loudly.
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
       - name: Install
         run: pip install -e '.[dev]'
 

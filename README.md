@@ -56,6 +56,8 @@ lawcorpus/manifest.py      one manifest schema: read, write, validate
 lawcorpus/store.py         gzip corpus store — write-with-hash, read, verify
 lawcorpus/cite.py          the citation primitive; quotes never print without a validity banner
 lawcorpus/formex.py        Formex XML -> citable text (articles, recitals, paragraph numbering)
+lawcorpus/caml.py          CAML XML -> citable text (California codified sections)
+lawcorpus/pdf.py           PDF -> citable text via poppler, with running-furniture removal
 lawcorpus/fetch/eurlex.py  EUR-Lex / Cellar fetcher, shared by eu-data-law and eidas-eudi
 docs/method.md             how the research is done — read before adding to any corpus repo
 docs/taxonomy.md           the duty taxonomy and the authority ladder

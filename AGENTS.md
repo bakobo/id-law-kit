@@ -52,6 +52,10 @@ Strict TDD, from now on. For each requirement: write failing tests that capture 
 without proving the whole suite passes. **100% branch coverage of new code** is the bar, and CI
 enforces it with `--cov-fail-under=100`. Always leave existing code better tested than you found it.
 
+Requires **poppler-utils** on PATH (`pdftotext`) for `lawcorpus/pdf.py`. Without it the PDF
+tests skip, which would quietly drop coverage below the gate rather than failing loudly — CI
+installs it explicitly for that reason.
+
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/python -m pytest --cov        # the gate CI runs
