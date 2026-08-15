@@ -105,6 +105,10 @@ class EurLexDocument:
     url: str
     body: bytes
     media_type: str
+    # Annexes published as separate Formex members, in document order. The annex of an
+    # implementing act is operative law (standards lists, notification templates), so a
+    # consumer that stores only `body` is storing a truncated instrument.
+    annex_bodies: tuple = ()
 
 
 def _urllib_transport(url, *, headers, timeout):
@@ -219,18 +223,29 @@ class EurLexFetcher:
                 f"requests, so read that text before assuming the CELEX is wrong."
             ) from e
 
-        bodies = [n for n in names if n.lower().endswith(".xml") and not n.lower().endswith(".doc.xml")]
+        # Exclude the bibliographic descriptor and table of contents. Cellar has shipped
+        # both naming shapes: `X.doc.xml` and `X.doc.fmx.xml` / `X.toc.fmx.xml`.
+        bodies = [
+            n
+            for n in names
+            if n.lower().endswith(".xml") and not re.search(r"\.(doc|toc)\.(fmx\.)?xml$", n.lower())
+        ]
         if not bodies:
             raise EurLexError(
                 f"The Formex archive for {doc.celex} has no document body. Its members are: "
                 f"{', '.join(names)}. Expected an .xml member that is not the .doc.xml descriptor."
             )
-        # More than one candidate happens for acts published with annexes; the body is the
-        # largest member, and the descriptor is always tiny.
-        chosen = max(bodies, key=lambda n: archive.getinfo(n).file_size)
+        # More than one member happens for acts whose annexes are published as separate
+        # Formex documents. Member names encode document order (…0101 enacting terms,
+        # …0102, …0103 annexes), so a lexicographic sort reproduces the instrument's own
+        # order. Every member is law: an earlier revision kept only the largest member,
+        # which silently dropped the annexes of 19 of 28 instruments in one corpus —
+        # including the standards lists that are those acts' entire operative payload.
+        bodies.sort()
         return EurLexDocument(
             celex=doc.celex,
             url=doc.url,
-            body=archive.read(chosen),
+            body=archive.read(bodies[0]),
             media_type="application/xml;type=fmx4",
+            annex_bodies=tuple(archive.read(n) for n in bodies[1:]),
         )
