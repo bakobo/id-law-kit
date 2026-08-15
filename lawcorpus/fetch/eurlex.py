@@ -44,7 +44,7 @@ ACCEPT_NOTICE_OBJECT = "application/xml;notice=object"
 ACCEPT_FORMEX_ZIP = "application/zip;mtype=fmx4"
 
 # Sector digit, year, descriptor letter(s), number — optionally a consolidation date suffix.
-CELEX_RE = re.compile(r"^[0-9]{5}[A-Z]{1,2}[0-9]{4}(?:\([0-9]{2}\))?(?:-[0-9]{8})?$")
+CELEX_RE = re.compile(r"^[0-9]{5}[A-Z]{1,2}[0-9]{4}(?:\([0-9]{2}\))?(?:-[0-9]{8})?$")  # ~4jt4
 _ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
 USER_AGENT = "bakobo-id-law-kit/0.1 (+https://github.com/bakobo/id-law-kit)"
