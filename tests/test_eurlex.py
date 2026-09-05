@@ -211,8 +211,9 @@ class TestFetchFormex:
     """The route that actually yields text.
 
     The notices are metadata. Only `mtype=fmx4` carries the operative provisions, and it arrives
-    as a zip with two members: a small `.doc.xml` descriptor and the document body. Picking the
-    wrong member gives you 1.6 KB of bibliographic data that parses fine and says nothing.
+    as a zip holding a small `.doc.xml` descriptor and one or more document bodies. Picking the
+    descriptor gives you 1.6 KB of bibliographic data that parses fine and says nothing; keeping
+    only one body when an act publishes its annexes as separate members drops operative law.
     """
 
     def _zip(self, members):
@@ -243,13 +244,54 @@ class TestFetchFormex:
         doc = EurLexFetcher(transport=transport).fetch_formex("32016R0679")
         assert doc.body == b"<ACT>body</ACT>"
 
-    def test_picks_the_largest_member_when_names_do_not_disambiguate(self, transport):
+    def test_keeps_every_body_member_in_name_order(self, transport):
+        # Annexes ship as separate members, and Cellar's names encode document order: …000101
+        # is the enacting terms, …000701 an annex. Sorting by name reproduces that order, so
+        # the primary body is the first member however small it is next to its annexes.
         transport.default = (
             200,
-            self._zip({"a.xml": "<ACT>tiny</ACT>", "b.xml": "<ACT>" + "x" * 500 + "</ACT>"}),
+            self._zip(
+                {
+                    "L_000701.xml": "<ANNEX>" + "x" * 500 + "</ANNEX>",
+                    "L_000101.xml": "<ACT>enacting terms</ACT>",
+                    "L_000102.xml": "<ANNEX>second</ANNEX>",
+                    "L_x.doc.xml": "<DOC/>",
+                }
+            ),
             "application/zip",
         )
-        assert b"x" * 500 in EurLexFetcher(transport=transport).fetch_formex("32016R0679").body
+        doc = EurLexFetcher(transport=transport).fetch_formex("32016R0679")
+        assert doc.body == b"<ACT>enacting terms</ACT>"
+        assert doc.annex_bodies == (
+            b"<ANNEX>second</ANNEX>",
+            b"<ANNEX>" + b"x" * 500 + b"</ANNEX>",
+        )
+
+    def test_a_single_body_carries_no_annexes(self, transport):
+        transport.default = (
+            200,
+            self._zip({"L_x.doc.xml": "<DOC/>", "L_x.xml": "<ACT>body</ACT>"}),
+            "application/zip",
+        )
+        assert EurLexFetcher(transport=transport).fetch_formex("32016R0679").annex_bodies == ()
+
+    def test_excludes_the_fmx_named_descriptor_and_toc(self, transport):
+        # Cellar ships both naming shapes. A filter that only knows `.doc.xml` stores the
+        # descriptor as the body and files the real text as an annex.
+        transport.default = (
+            200,
+            self._zip(
+                {
+                    "L_000101.doc.fmx.xml": "<DOC/>",
+                    "L_000101.toc.fmx.xml": "<TOC/>",
+                    "L_000101.xml": "<ACT>body</ACT>",
+                }
+            ),
+            "application/zip",
+        )
+        doc = EurLexFetcher(transport=transport).fetch_formex("32016R0679")
+        assert doc.body == b"<ACT>body</ACT>"
+        assert doc.annex_bodies == ()
 
     def test_a_body_that_is_not_a_zip_is_a_clear_error(self, transport):
         # Omitting Accept-Language returns a plain-text explanation, not a document. The fetcher
