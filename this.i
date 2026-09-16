@@ -714,6 +714,55 @@ Shared method and tooling for the identity-law corpus programme = goal:
             Tradeoff: one pattern now carries four traditions' vocabulary, so a false opener in any
             of them is a false opener everywhere, and the tests pin each tradition's examples
             precisely because the union makes a mistake travel.
+          children:
+            A list label is not a word, and a registry nobody can select from is not one = decision:
+              id: o3dodx44
+              why: >
+                @zzqzaku4's tradeoff came true, in the way it named: "a false opener in any of them
+                is a false opener everywhere". The `indonesian` entry's label pattern is
+                `[a-z0-9]{1,3}\.[ \t]`, three lower-case alphanumerics and a dot, which is `a.` and
+                `12.` and also **`out. `** — so a line of English prose that wraps after
+                "…subverting or impairing a consumer's choice to opt-" / "out. Illustrative examples
+                follow:" opens a block instead of being rejoined, and one of `ccpa`'s 91 regulation
+                sections is split down the middle. English words at the head of a wrapped line are
+                not rare; `in.`, `to.` and `set.` all qualify.
+                **And the escape hatch was unreachable.** `structural_pattern('common-law')`
+                reproduces `ccpa`'s stored text where `structural_pattern()` does not, but `extract`
+                takes no `traditions` argument and `_STRUCTURAL` is a module global, so no caller
+                could reach the fix. A per-tradition registry a caller cannot select from is a
+                registry in name only, and @zzqzaku4 plainly meant it to be selectable — it argues
+                at length about what the *default* should be, which is a question about an argument
+                that was never added.
+                Chose to make a label something no word can be: **a single letter, or any short run
+                of characters containing a digit.** `a.` and `b.` stay labels, `1.`, `12.` and
+                `123.` stay labels, and the OCR-mangled numbers this corpus is full of — `t4.` for
+                `14.`, `2o8.` for `208.`, `284a.` — stay labels because they carry a digit. No
+                English word does. Rejected requiring the digit everywhere, which loses those; and
+                rejected keeping two letters, which is `in.` and `to.` again.
+                Measured over 38 PDFs from three corpora, three documents change at all. One is the
+                `ccpa` sentence, repaired. One is UU 13/2022, **also repaired** — `284a.` carries a
+                digit and is now a label, where the old three-character bound missed it and welded a
+                whole paragraph onto the running head above it. The entire cost is the third: **one
+                joined pair of list items in one Indonesian instrument**. UU 24/2013 continues a
+                list past `z.` as `aa.` `bb.` `cc.` `dd.` `ee.`, doubled letters that are real
+                labels and are no longer recognised. Four of the five are unaffected because a list
+                item ends in `;` and the rejoiner does not cross terminal punctuation; the fifth
+                follows an item ending in "dan", so `dd.` and `ee.` now share a line. **No word is
+                lost**, and the damage it replaces was a split sentence in a different corpus.
+                The label also inherits @avcicqvb's lookahead, which the common-law entry already
+                carried and this one did not. A label is followed by the thing it labels, so
+                `2017.` alone on a line stays a wrapped year rather than becoming a paragraph
+                number — which the old three-character bound achieved by accident, and a bound wide
+                enough for `284a.` is wide enough for `2017.` unless the lookahead says otherwise.
+                The selector is plumbed at the same time, `traditions` threading from `extract`
+                through `clean_pages` and `strip_repeated_furniture` to both consumers of the idea,
+                defaulting to every tradition — @zzqzaku4's default, unchanged and still right for a
+                caller who does not know what they are holding. A caller who *does* know can now say
+                so, which is the difference between a registry and a constant.
+                Tradeoff: a doubled-letter label is furniture to nobody and law to nobody, but it is
+                real drafting, and this pattern cannot see it without also seeing `in.`. The
+                asymmetry is deliberate — a missed label merges two list items visibly on one line,
+                and a false label splits a sentence in a way that greps wrong and reads wrong.
 
         A provision number must be followed by something; a wrapped year is followed by nothing = decision:
           id: avcicqvb
