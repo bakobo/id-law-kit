@@ -20,6 +20,7 @@ is worse than no extraction — it looks like text.
 
 from __future__ import annotations
 
+import math
 import re
 import shutil
 import subprocess
@@ -29,16 +30,26 @@ from pathlib import Path
 from .errors import LawcorpusError
 from .normalise import DIGITS, fold_digits, looks_cjk, normalise_text
 
-# How many lines at each edge of a page can be furniture.
+# How many lines at each edge of a page `_PAGE_NUMBER` may reach. Position is the only evidence
+# that rule has — a line which is nothing but a number is furniture *because* it sits at the edge —
+# so its window stays tight. See @kbdz5bmq.
 EDGE_LINES = 3
+# How many lines at each edge the two rules that prove furniture from repetition may reach. They
+# carry their own evidence and do not need position to supply it, which is what lets them see past
+# a scanner's emblem: `indonesia-id` measured Perpres 95/2018 OCR'ing the Garuda into three to six
+# lines of noise, landing the real running head at line index 5 to 7 and outside a window of 3.
+FURNITURE_LINES = 8
 # A line must appear at the same edge on at least this fraction of pages to count as furniture.
 FURNITURE_THRESHOLD = 0.6
-# A *shape* must recur on at least this fraction, which is lower, and the difference is forced
-# rather than tuned. Printed legal publishing mirrors its running heads between recto and verso —
-# SSO puts the page number on the left of an even page and the right of an odd one — so a mirrored
-# header is two shapes each appearing on about half the pages, and any threshold above one half
-# structurally cannot see one. See @ly7tho4y.
+# A *shape* must recur on at least this fraction of the pages it spans, which is lower, and the
+# difference is forced rather than tuned. Printed legal publishing mirrors its running heads
+# between recto and verso — SSO puts the page number on the left of an even page and the right of
+# an odd one — so a mirrored header is two shapes each appearing on about half the pages it runs
+# through. Mirrored shapes are counted together (@lbqi475m), so the margin this leaves is for a
+# title page and a landscape insert rather than for the mirror. See @ly7tho4y.
 SHAPE_THRESHOLD = 0.4
+# No shape is furniture on the evidence of one page, whatever the fractions come to.
+MIN_FURNITURE_PAGES = 2
 
 _PAGE_NUMBER = re.compile(
     r"^\s*(?:page\s+)?\d+\s*(?:of\s+\d+)?\s*$|^\s*-\s*\d+\s*-\s*$", re.IGNORECASE
@@ -54,17 +65,86 @@ _MULTISPACE = re.compile(r"[ \t]{2,}")
 # sentence. Matching on the *opener* rather than on "is it lower case" matters because legal
 # prose wraps before capitalised proper nouns constantly ("...means the California\nPrivacy
 # Protection Agency"), and a lower-case-only rule leaves those split.
-_STRUCTURAL = re.compile(
-    r"""^\s*(?:
-        \u00a7                      # section sign
+# One entry per drafting tradition, because the original list was number-leading throughout and
+# that is common-law drafting rather than a universal: Indonesian, Thai and Japanese all put the
+# label first. Substituting the common-law entry alone for `indonesia-id`'s own pattern refuses 8
+# of that repo's 11 stored instruments. A tradition is added here in one line and both consumers
+# of the idea — the rejoiner and the furniture rule — gain it together. See @zzqzaku4.
+#
+# Written for `re.VERBOSE`, so a literal space must be escaped or live inside a character class.
+STRUCTURAL_OPENERS = {
+    "common-law": r"""
+        §                      # section sign
       | \([a-zA-Z0-9]{1,4}\)        # (a) (1) (iii) (A)
       | \d+[A-Z]{0,2}\.             # 1.  23A.  16O.  — see @zr3b5ll2
       | ARTICLE\b | CHAPTER\b | DIVISION\b | TITLE\b
       | Note:
-      | [A-Z][A-Z \u2019'\-]{6,}\s*$   # an all-caps heading line
-    )""",
-    re.VERBOSE,
-)
+      | [A-Z][A-Z ’'\-]{6,}\s*$   # an all-caps heading line
+    """,
+    # `indonesia-id/tools/indonesian.py`, measured over eleven instruments. `BAB` is the case that
+    # settles the design: the all-caps rule above matches `BAB XVII` and fails `BAB I`, which is
+    # the worst shape of all, because it welds exactly the chapters an ordering check would catch.
+    "indonesian": r"""
+        BAB\b | BAGIAN\b | Bagian\b | PARAGRAF\b | Paragraf\b
+      | PASAL\b | Pasal\b
+      | [a-z0-9]{1,3}\.[ \t]        # a.  1.  12.  — the space is what keeps a decimal out
+      | MEMUTUSKAN | MENETAPKAN | Menimbang | Mengingat | Menetapkan
+      | PRESIDEN\b | UNDANG-UNDANG\b | PERATURAN\b | PENJELASAN\b | LAMPIRAN\b
+    """,
+    # The label `thailand-id` already hands `completeness.scan`, plus the divisions above a
+    # section. No `\b` anywhere: Thai writes no word boundaries, and a `\b` there under-counts
+    # partially, which reads like a successful search.
+    "thai": r"""
+        มาตรา       # section
+      | หมวด             # chapter
+      | ส่วน                  # part
+      | ภาค                   # book
+      | ลักษณะ # title
+    """,
+    # 第N条 and the divisions above and below it, in both numeral systems, because `japan-id`'s
+    # two corpora spell the same provision 第十八条 and 第18条. 附則 ends the main body.
+    "japanese": r"""
+        第[一二三四五六七八九十百〇\d]{1,6}
+        [条章節款編項号]
+      | 附[ \t　]?則
+    """,
+}
+
+
+class UnknownTraditionError(LawcorpusError):
+    """A drafting tradition that is not in `STRUCTURAL_OPENERS`.
+
+    `input.format` rather than a leaf of our own: it is decidable by inspecting the argument
+    alone, which is the standard's `input` boundary, and the obstacle is a declared token this
+    package cannot read — the same obstacle as `e.input.format.oracle.f`.
+    """
+
+    code = "e.input.format.tradition.f"
+
+
+def structural_pattern(*traditions):
+    """The compiled opener pattern for the named traditions, or for every one of them.
+
+    Every tradition by default rather than a `traditions=` argument the caller must get right,
+    for @amdvdsah's reason: a document does not reliably declare its tradition and the caller
+    frequently does not know either. The cost of carrying every tradition over an English corpus
+    is a line opening `Pasal` or a Thai section label not being rejoined, which does not arise;
+    the cost of defaulting to common-law is `indonesia-id`'s 8 refusals of 11. See @zzqzaku4.
+    """
+    names = traditions or tuple(STRUCTURAL_OPENERS)
+    unknown = [n for n in names if n not in STRUCTURAL_OPENERS]
+    if unknown:
+        raise UnknownTraditionError(
+            f"No drafting tradition named {', '.join(repr(n) for n in unknown)}. Known traditions "
+            f"are: {', '.join(sorted(STRUCTURAL_OPENERS))}. Add one to STRUCTURAL_OPENERS rather "
+            f"than passing a pattern, so the rejoiner and the furniture rule gain it together."
+        )
+    return re.compile(
+        "^\\s*(?:" + "|".join(STRUCTURAL_OPENERS[n] for n in names) + ")", re.VERBOSE
+    )
+
+
+_STRUCTURAL = structural_pattern()
 # A line that ends mid-sentence: no terminal punctuation.
 _UNTERMINATED = re.compile(r"[^.:;?!\)\]\u2019\"]\s*$")
 
@@ -75,14 +155,27 @@ class PdfError(LawcorpusError):
     code = "BK_PDF_EXTRACT"
 
 
-def _edge_lines(page: str) -> list:
+def _edge_lines(page: str, depth: int) -> list:
     """The lines at the top and bottom of one page, stripped, with no line counted twice.
 
-    The head and tail slices must not overlap, or a short page counts its own lines twice and a
-    line appearing once crosses the threshold on its own.
+    Blank lines do not count toward the depth — a page that opens with three blank lines has not
+    used up its window — and `_line_ranks` below reads the page the same way, so the window means
+    one thing in the counting and another nowhere. The head and tail slices must not overlap, or a
+    short page counts its own lines twice and a line appearing once crosses the threshold on its
+    own.
     """
     lines = [ln.strip() for ln in page.splitlines() if ln.strip()]
-    return lines[:EDGE_LINES] + lines[max(EDGE_LINES, len(lines) - EDGE_LINES):]
+    return lines[:depth] + lines[max(depth, len(lines) - depth):]
+
+
+def _line_ranks(lines: list) -> tuple:
+    """Each raw line's position among the non-blank lines, and how many there are.
+
+    A blank line gets no rank and is never furniture. Returned rather than recomputed per rule so
+    that both windows measure from the same origin. See @kbdz5bmq.
+    """
+    filled = [index for index, line in enumerate(lines) if line.strip()]
+    return {index: rank for rank, index in enumerate(filled)}, len(filled)
 
 
 def _shape(line: str) -> str:
@@ -95,13 +188,27 @@ def _fields(line: str) -> tuple:
     return tuple(int(fold_digits(m.group())) for m in _DIGIT_RUN.finditer(line))
 
 
+def _head_group(shape: str) -> tuple:
+    """What two mirrored spellings of one running head have in common.
+
+    Printed legal publishing prints the page number on the left of a verso and the right of a
+    recto, so `2020 Ed. … Act 1965 … 6` and `6 … Act 1965 … 2020 Ed.` are one head holding one
+    body of evidence between two templates. Keyed on the multiset of non-numeric tokens, which is
+    what survives the mirroring: order does not, and neither do the field positions. See
+    @lbqi475m.
+    """
+    return tuple(sorted(shape.replace(_FIELD, " ").split()))
+
+
 def _counts_up(values: list) -> bool:
     """Does some one field strictly increase across the pages carrying this shape?
 
-    The condition that makes the shape rule safe. "Constant except for a varying number" on its
-    own also describes the edge rows of a long numbered table, and a rule that eats content to
-    remove furniture is worse than the furniture. A field that counts up with the pages is a page
-    number, and nothing else in a statute behaves that way. See @ly7tho4y.
+    Half of what makes the shape rule safe, and only half. "Constant except for a varying number"
+    on its own also describes the edge rows of a long numbered table. @ly7tho4y claimed this was
+    the whole of it — "a field that counts up with the pages is a page number, and nothing else in
+    a statute behaves that way" — and `indonesia-id` refuted it with `Pasal N`, which counts up
+    with the pages exactly as a page number does. The other half is `_STRUCTURAL`, applied in
+    `_furniture_shapes`. See @lbqi475m.
     """
     return any(
         all(row[field] < nxt[field] for row, nxt in zip(values, values[1:]))
@@ -109,27 +216,68 @@ def _counts_up(values: list) -> bool:
     )
 
 
-def _furniture_shapes(pages: list, threshold: int) -> set:
-    """Shapes that recur at the page edges with a page number embedded in them.
+def _shape_candidates(pages: list) -> dict:
+    """Every edge template that could be a running head, with the pages and field values it has.
+
+    A line the package's structural grammar recognises is excluded here and nowhere else. That is
+    the premise fix: the things other than page numbers that count up with the pages are provision
+    headings, and `STRUCTURAL_OPENERS` is already the list of them. The *text* rule is left alone,
+    because identical text on most pages cannot be distinct provisions — article numbers differ —
+    so repetition of the literal string is proof of furniture in a way repetition of a template is
+    not. See @lbqi475m.
+    """
+    seen = {}
+    for index, page in enumerate(pages):
+        rows = {}
+        for line in reversed(_edge_lines(page, FURNITURE_LINES)):
+            if _STRUCTURAL.match(line):
+                continue
+            shape = _shape(line)
+            if _FIELD not in shape:
+                continue
+            # A letter, or a line that is nothing but a page marker. `- 4 -` carries no letter and
+            # is furniture; admitting it here is what lets a marker below a scanner's emblem be
+            # reached on evidence rather than on position. See @kbdz5bmq.
+            if not any(ch.isalpha() for ch in shape) and not _PAGE_NUMBER.match(line):
+                continue
+            rows[shape] = _fields(line)
+        for shape, fields in rows.items():
+            seen.setdefault(shape, []).append((index, fields))
+    return seen
+
+
+def _furniture_shapes(pages: list) -> set:
+    """Shapes that recur across the pages they span with a page number embedded in them.
 
     `strip_repeated_furniture` matches a running head by its exact text, and a publisher that
     prints the page number *inside* the header defeats that completely, because no two pages then
     carry the same string. SSO writes `2020 Ed.   National Registration Act 1965   6`; measured on
     the PDPA, 124 of 124 footers were stripped and the header survived on 120 of 123 pages,
     landing mid-provision through a 194,000-character document.
+
+    The denominator is the **span** a head covers rather than the document, because a running head
+    that starts after the contents page and stops before the schedules should be judged on the
+    territory it runs through. `singapore-id` measured the old denominator on the Interpretation
+    Act 1965: 63 pages of which 18 are front matter carrying no head, so each mirrored half is 22
+    or 23 against a bar of 25 and nothing is stripped. The span must itself reach the document,
+    which is what stops a template on pages 1 and 2 of sixty scoring two of two. See @lbqi475m.
     """
-    seen = {}
-    for page in pages:
-        for shape, fields in {_shape(ln): _fields(ln) for ln in reversed(_edge_lines(page))}.items():
-            seen.setdefault(shape, []).append(fields)
-    return {
-        shape
-        for shape, values in seen.items()
-        if len(values) >= threshold
-        and _FIELD in shape
-        and any(ch.isalpha() for ch in shape)
-        and _counts_up(values)
-    }
+    bar = max(MIN_FURNITURE_PAGES, math.ceil(len(pages) * SHAPE_THRESHOLD))
+    groups = {}
+    for shape, rows in _shape_candidates(pages).items():
+        if _counts_up([fields for _, fields in rows]):
+            groups.setdefault(_head_group(shape), []).append((shape, rows))
+
+    furniture = set()
+    for members in groups.values():
+        carrying = {index for _, rows in members for index, _ in rows}
+        span = max(carrying) - min(carrying) + 1
+        if span < bar:
+            continue
+        if len(carrying) < max(MIN_FURNITURE_PAGES, math.ceil(span * SHAPE_THRESHOLD)):
+            continue
+        furniture.update(shape for shape, _ in members)
+    return furniture
 
 
 def strip_repeated_furniture(pages: list) -> list:
@@ -138,8 +286,14 @@ def strip_repeated_furniture(pages: list) -> list:
     Frequency alone is not enough, and it fails in two directions. "Page 1 of 127" never repeats
     verbatim, so it is matched by shape instead. And a running head carrying its own page number
     never repeats either, so it is matched by a second shape rule — a line constant except for a
-    field that counts up with the pages. Frequency is measured only at the *edges* of a page: a
-    phrase appearing in the body of every page is a defined term, not furniture.
+    field that counts up with the pages, and which the structural grammar does not recognise as a
+    provision heading. Frequency is measured only at the *edges* of a page: a phrase appearing in
+    the body of every page is a defined term, not furniture.
+
+    Two edge windows, not one. `_PAGE_NUMBER` has nothing but position to go on, so it keeps the
+    tight `EDGE_LINES`; the two rules that prove furniture from repetition across pages reach
+    `FURNITURE_LINES` deep, which is what lets them see a running head printed below a scanner's
+    emblem. See @kbdz5bmq.
     """
     if len(pages) < 2:
         return list(pages)
@@ -147,23 +301,26 @@ def strip_repeated_furniture(pages: list) -> list:
     edge_counts = Counter()
     for page in pages:
         # One vote per page per distinct line, for the reason `_edge_lines` gives.
-        edge_counts.update(set(_edge_lines(page)))
+        edge_counts.update(set(_edge_lines(page, FURNITURE_LINES)))
 
-    threshold = max(2, int(len(pages) * FURNITURE_THRESHOLD))
+    threshold = max(MIN_FURNITURE_PAGES, int(len(pages) * FURNITURE_THRESHOLD))
     furniture = {line for line, n in edge_counts.items() if n >= threshold}
-    shapes = _furniture_shapes(pages, max(2, int(len(pages) * SHAPE_THRESHOLD)))
+    shapes = _furniture_shapes(pages)
 
     out = []
     for page in pages:
         lines = page.splitlines()
-        keep, n = [], len(lines)
+        ranks, filled = _line_ranks(lines)
+        keep = []
         for index, line in enumerate(lines):
             stripped = line.strip()
-            at_edge = index < EDGE_LINES or index >= n - EDGE_LINES
-            if at_edge and (
-                stripped in furniture
-                or _PAGE_NUMBER.match(stripped)
-                or (stripped and _shape(stripped) in shapes)
+            rank = ranks.get(index)
+            at_edge = rank is not None and (rank < EDGE_LINES or rank >= filled - EDGE_LINES)
+            deep = rank is not None and (
+                rank < FURNITURE_LINES or rank >= filled - FURNITURE_LINES
+            )
+            if (deep and (stripped in furniture or _shape(stripped) in shapes)) or (
+                at_edge and _PAGE_NUMBER.match(stripped)
             ):
                 continue
             keep.append(line)
