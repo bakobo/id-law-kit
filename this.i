@@ -264,6 +264,56 @@ Shared method and tooling for the identity-law corpus programme = goal:
                     is a false positive, visible the moment the hit is read, and what it replaces is
                     a zero that reads as a finding.
 
+                A query digit reaches every numeral system, which needs the regex parsed = decision:
+                  id: 4zotolb5
+                  why: >
+                    Reverses @liv2lsxs's "the fold only ever rewrites non-ASCII input, and that
+                    asymmetry is deliberate". `thailand-id` found what the asymmetry costs:
+                    `search_key` folds Thai digits onto Arabic and `normalise_query` does not, so
+                    `lawcite --grep 'มาตรา 7'` returns zero against a corpus holding `มาตรา ๗` while
+                    `มาตรา ๗` finds it. Two functions in one module disagreed about the same
+                    question, and the one a user reaches through the CLI held the wrong answer. That
+                    is @f5mvj6's silent false negative produced by the tool built to prevent it, so
+                    the asymmetry cannot stand — the stored text keeps the source's own digits
+                    (@amdvdsah: they are authentic, not layout), which leaves the query side as the
+                    only place the two systems can meet.
+                    The rejection @liv2lsxs recorded was not wrong about its reason. Expanding a bare
+                    ASCII digit really does break `[0-9]`, and it breaks `\d{1,3}` and `\1` too. What
+                    it got wrong was treating "parsing a regex costs more than the trap does" as
+                    settled by a separator trap that nobody had hit, when the trap actually hit was a
+                    digit — and a digit is not an occasional character in a legal query, it is what a
+                    provision is addressed by. So the price is now worth paying: `normalise_query`
+                    tracks three states a character can sit in — escaped, inside a character class,
+                    inside a `{m,n}` quantifier — and rewrites nothing in the last two. A digit
+                    outside them becomes a class holding that digit's spelling in every system;
+                    inside a class it is *added to* the class, and an ASCII digit range gains the
+                    parallel range in each system, so `[0-9]` becomes `[0-9๐-๙]` rather than the
+                    nested rubble @liv2lsxs feared.
+                    Two further things fall out of the scanner rather than being aimed at, and both
+                    are fixes. @liv2lsxs's documented hole — a separator inside a user-written
+                    character class producing a nested class — is closed, because a separator in a
+                    class now contributes its five spellings as members. And @ux7izhdj's optional
+                    space is no longer inserted inside a class, where `[個人]` had been rewritten to
+                    something that is not a character class at all.
+                    The systems are declared as data, `NUMERAL_SYSTEMS`, which both functions consume
+                    — an asymmetry between them is now a thing that cannot be written rather than a
+                    thing a reviewer must notice, and `tests/test_normalise.py` asserts the agreement
+                    per system with a positive control in each script. Only systems the programme's
+                    corpora actually use are listed, which today is Thai. Rejected enumerating every
+                    Unicode decimal-digit script: a sixty-character class per digit buys reach into
+                    corpora nobody holds and correlates nothing, and the list is where a future
+                    script is added in one line.
+                    Rejected folding CJK numerals here, which §8.3 names as a real trap (`第1条` finds
+                    0 where `第五十七条` finds 19). `kanji_number` already reads them and the fold is
+                    tempting, but `第六条` is not `第6条` spelled differently the way `๗` is `7` — the
+                    kanji form is positional (十, 百) and reversing it into a query means generating
+                    every spelling of a number rather than translating ten characters. It is a
+                    separate decision with a separate risk, and bundling it into this one would hide
+                    it. Tradeoff accepted: `normalise_query` now understands enough regex syntax to
+                    be wrong about a regex, where before it could only be wrong about a character;
+                    the states it tracks are the three that carry digits, and a `{` that is not a
+                    quantifier suppresses the fold until the next `}` rather than corrupting it.
+
     An extraction is refused unless it matches a declared structure = decision:
       id: zpycgven
       why: >
@@ -361,6 +411,66 @@ Shared method and tooling for the identity-law corpus programme = goal:
             door, and symmetry here would be four public names covering one real need. Tradeoff: one
             more public name to keep stable, against a caller otherwise reaching into a private one,
             which is the same dependency with none of the obligation admitted.
+
+    A lettered provision number is a structural opener = decision:
+      id: zr3b5ll2
+      why: >
+        `_STRUCTURAL` is the list of line openers `_rejoin_wrapped_lines` must never weld to the
+        line above, and it recognised `\d+\.` and not `23A.`. The consequence is not cosmetic and it
+        is not confined to the heading: a lettered section's heading is glued onto the marginal note
+        preceding it, so the section stops being line-anchored, so `completeness.scan` — which is
+        line-anchored on purpose (@qd6p2f3x) — cannot see it at all. `singapore-id` measured it on
+        the National Registration Act 1965: 33 of 34 sections scan and the one that fails is the
+        lettered one, which is the whole shape of the Electronic Transactions Act's Part 2A, ss.16A
+        to 16S — the provisions that repo exists to read. So one missing alternative in one regex
+        silently removed a jurisdiction's central finding from every scan run over it.
+        Chose `\d+[A-Z]{0,2}\.`, which is `singapore-id`'s own measured pattern less its lookahead.
+        Lettered and suffixed provisions are near-universal in common-law drafting — Singapore,
+        Malaysia, India, the UK, and Indonesia's `Pasal 13A` — so this is a hole in the general
+        cleaner rather than a Singapore quirk, which is why it is fixed here rather than worked
+        around per corpus. Two uppercase letters covers every form observed; three would begin to
+        admit an all-caps word followed by a full stop. Rejected `singapore-id`'s `(?=—|\s)`
+        lookahead: that pattern has to run mid-line, where a bare `1965.` ending a sentence reads as
+        section 1965, and this one is anchored at the start of a line where that cannot arise.
+        Tradeoff: a line opening with a year and a full stop was already treated as structural by
+        `\d+\.` and still is, so the change adds no new false opener — but it does mean a document
+        whose lines genuinely begin `12A.` mid-sentence will no longer be rejoined, which is the
+        direction this package errs in deliberately: an unjoined line is visible, a welded one is not.
+
+    Furniture is recognised by its shape, not only by its repeated text = decision:
+      id: ly7tho4y
+      why: >
+        `strip_repeated_furniture` matches a running head by exact text repeated at the page edges,
+        and a publisher that prints the page number *inside* the header line defeats it completely,
+        because no two pages then carry the same string. Singapore's SSO writes
+        `2020 Ed.   National Registration Act 1965   6`. Measured on the Personal Data Protection
+        Act: 124 of 124 footers stripped, and the header survived on 120 of 123 pages, landing
+        mid-provision through a 194,000-character document. A running header inside a sentence is
+        `method.md` §6's canonical case of output that looks fine and greps wrong, and `_PAGE_NUMBER`
+        does not reach it because the line is not a page number, it merely contains one.
+        Chose a shape rule beside the text rule rather than instead of it: each edge line is reduced
+        to a template by collapsing whitespace and masking every digit run, and a template is
+        furniture when it recurs across pages, carries at least one letter, and has at least one
+        masked field whose values **strictly increase** with the pages carrying it. The increasing
+        field is what makes the rule safe. "Constant except for a varying number" on its own would
+        also describe the edge rows of a long numbered table, and a rule that eats content to remove
+        furniture is worse than the furniture; a field that counts up with the pages is a page
+        number and nothing else in a statute behaves that way.
+        The threshold for the shape rule is lower than `FURNITURE_THRESHOLD`, and that is forced
+        rather than tuned. Printed legal publishing mirrors its running heads between recto and
+        verso — SSO puts the page number on the left of an even page and the right of an odd one —
+        so a mirrored header is two templates each appearing on about half the pages, and any
+        threshold above one half structurally cannot see one. 0.4 leaves margin for a title page and
+        a landscape insert.
+        Rejected lifting `singapore-id`'s answer, which anchors on the literal `<year> Ed.` edition
+        mark. It is correct and it is measured, and it is a Singapore string: every other publisher
+        would need its own anchor, which is the per-corpus duplication the kit exists to stop.
+        Rejected a caller-supplied anchor regex for the same reason — it makes each corpus solve it
+        again, with the added cost that a repo which does not know it has this problem will not pass
+        one. Tradeoff: the shape rule can in principle eat a genuine edge line that repeats on 40% of
+        pages with a page-correlated number in it, and the three conditions are what make that
+        unlikely rather than impossible; `raw_pages` remains available for a caller that needs the
+        pages before any of this runs.
 
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
