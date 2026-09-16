@@ -357,6 +357,11 @@ Shared method and tooling for the identity-law corpus programme = goal:
     Error codes stay in this package's `BK_*` idiom rather than the dotted standard = decision:
       id: 4jeup7vd
       why: >
+        *** Reversed 2026-09-16 by @sqxhmdkt, which supersedes this node for all new code. The
+        reasoning below is kept because the tradeoff it names is real and still governs the nine
+        *published* `BK_*` codes, which do not change identity. What it got wrong is recorded at
+        @sqxhmdkt: two other modules written the same day conformed, so the consistency this node
+        was buying had already been spent before it was written. ***
         `dev/standards/error-codes.md` specifies `<sorter>.<descriptor>.<disposition>` — the browser
         refusal would be something like `e.party.refused.f` and the missing extra
         `e.feature.unsupported.f`. Every existing code in this package is flat `BK_*`
@@ -366,3 +371,74 @@ Shared method and tooling for the identity-law corpus programme = goal:
         form — does not work on a set of codes that is half converted. Recorded rather than silently
         copied, because the standard is the standard and this is a deviation with an expiry date: the
         migration is one change across the package, tick ~6fpq.
+
+    New code conforms to the dotted standard; only published codes stay flat = decision:
+      id: sqxhmdkt
+      why: >
+        Reverses @4jeup7vd. That node argued for consistency with the package, and the argument was
+        already false when it was written: `thai.py`, `completeness.py` and `validity.py` landed the
+        same day in the dotted grammar, so the package was mixed either way and the only question
+        left was which idiom the *next* module joins. The tie is broken by the asymmetry in cost. A
+        published code's identity may not change (`error-codes.md`, "a code's meaning and `args`
+        signature never change once shipped"), so every flat code we add is another deprecation the
+        ~6fpq migration must pay for, while a new module written dotted costs nothing at all. The
+        rule is therefore: new code is dotted, the nine shipped `BK_*` codes keep their identity
+        until ~6fpq retires them with named successors, and no tenth flat code is ever minted —
+        `tests/test_error_codes.py` enforces that against a frozen list rather than trusting a
+        reader to notice. Rejected converting the published nine in this change, which is the same
+        false economy in the other direction: nine identity changes bundled into a grammar cleanup,
+        with no deprecation window for the corpus repos that catch them.
+        The five browser codes are classified by obstacle, not by the module that raises them, which
+        is what put four of them under four different first descriptors. `e.party.refused.f` for a
+        Cloudflare challenge or a deny page: a host that serves an interstitial is an actor that
+        chose, which is the standard's own agency test for `party` against `env`, and this is the
+        registered example verbatim. Final, not retryable, and the disposition is load-bearing here
+        — @v2xlormp forbids a loop that waits out a challenge, so an `r` would advertise the very
+        behaviour the design refuses. `e.rule.access.window.r` for a fetch outside the hours a
+        source permits automation: `rule` is "a norm we enforce, neither authority nor
+        verification", and that is exactly what @asbhej3z does with SSO clause (13)(d) — nobody's
+        credential is being evaluated, so it is not `grant`, and the `grant` reading would have been
+        tempting because a window looks like `validFrom`/`validUntil`. Retryable, because the window
+        reopens; the contrast with the challenge above is the whole reason the disposition is a
+        token rather than prose. Chose `access.window` over `access-window` on the standard's own
+        hyphen test — access is a subject that can have other problems in this package (a robots
+        directive, SSO clause (19)'s ban on caching), so it is a level, not half a name.
+        `e.self.config.browser.f` for a missing Playwright extra or browser binary: the settled
+        boundary says the locus decides, and the reason we cannot reach the material is our own
+        installation rather than the world's. Rejected @4jeup7vd's guess of
+        `e.feature.unsupported.f` — `unsupported` means nobody can, and this capability ships, it is
+        merely not installed here. `e.input.format.f` for a URL, window or interval the caller
+        declared wrong: decidable by inspecting the arguments alone, which is the `input` boundary,
+        and deliberately the bare registered code rather than a leaf of our own, because nobody
+        diagnoses, documents or counts "bad argument to a browser fetcher" separately from any other
+        malformed argument. `e.env.browser.f`, with `e.env.browser.r` below, for everything else the
+        browser channel fails to deliver.
+        One inconsistency in the sibling modules is fixed in the same change.
+        `e.input.translation-status.f` put a leaf of ours at the level the standard fills with
+        `.missing`/`.format`/`.range`/`.multi`, so it was unreachable from `e.input.format.` while
+        its neighbour `e.input.format.oracle.f` — the same kind of obstacle, a declared token this
+        package cannot read — was reachable. Now `e.input.format.translation-status.f`. The other
+        six dotted codes are right as minted and are left alone.
+      children:
+        Retryability is read off the code, which forced a second browser error class = decision:
+          id: 3tkymxtr
+          why: >
+            `LawcorpusError` carries a `transient` flag and the dotted grammar carries a disposition
+            token, and until now nothing kept them in step. `BrowserError` proved it: one class, one
+            code, and six raise sites of which two passed `transient=True` (a timeout or dead
+            browser process, and a 5xx from the source) and four did not (a browser that will not
+            start, a navigation with no response, an unexpected status, an empty 200). Any single
+            disposition on that code would have been a lie about four sites or two. Chose to make
+            the code authoritative — `transient` now defaults to whatever the code's last token says
+            — and to split off `BrowserTransientError` carrying `e.env.browser.r` for the two sites
+            that genuinely may succeed on a later attempt. Rejected leaving the flag to each raise
+            site and choosing the majority disposition, which is what makes a caller give up on a
+            timeout. Rejected deriving the whole code string from the flag, which `error-codes.md`
+            forbids: codes are module-scope literals so a catalog can be extracted by static
+            analysis. Rejected re-homing the four final sites into other classes to avoid a new
+            class, because that changes which exception a caller catches, and this repo's consumers
+            catch these by type. The base keeps the `f`, so a subclass that forgets to declare a
+            code inherits the fail-closed answer rather than promising a retry. Tradeoff: one more
+            public class in `fetch/browser.py`, and a caller that wants both halves now matches the
+            prefix `e.env.browser.` rather than one code — which is what prefixes are for, and is
+            why the subject sits above the disposition.
