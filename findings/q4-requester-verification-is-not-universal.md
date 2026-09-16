@@ -51,7 +51,9 @@ repo to create it. Retrying will not change this; change the input instead.
 
 So every Utah count below is `zcat | grep` over the three directories — 3,051 files — and carries no validity banner, because there is no validity field to print. The origin repo of this programme is the one repo its tooling cannot quote. Recorded as tick `~5t2g`.
 
-**`singapore-id`'s 20 items all carry the same `quotation_qualifier`**, which `lawcite` prints above every quote: *"SSO informal consolidation; s48 of the Interpretation Act 1965 does not apply to it, per SSO Terms of Use clause (8). The authoritative text is the printed Revised Edition."* Nothing quoted from Singapore below is the text that binds a court.
+**`singapore-id`'s 20 items all carry the same `quotation_qualifier`:** *"SSO informal consolidation; s48 of the Interpretation Act 1965 does not apply to it, per SSO Terms of Use clause (8). The authoritative text is the printed Revised Edition."* Nothing quoted from Singapore below is the text that binds a court.
+
+**And that qualifier does not print in search output**, which this comparison found by looking for it. `cite.py` emits an item's banners in `--grep` mode only when `quotable_as_current_law()` is false, so an `in-force` item's translation banner and `quotation_qualifier` are both suppressed — every Singapore grep hit prints without the SSO disclaimer, and Thailand's ETDA official English (`official-non-authoritative`, `in-force`) prints without its translation banner. Quote mode prints both correctly. Recorded as tick `~4j4t`; the banners in this file were obtained from the manifests and from `lawcite <item_id>`, not from the search output.
 
 **`indonesia-id` was being re-harvested while this was written.** Its figures and quotes are **as read at 2026-09-16T21:30 UTC, at HEAD `07e2f14`**. The `corpus/` tree did not change during the read, but the repo's prose did, twice.
 
