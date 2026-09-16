@@ -22,6 +22,8 @@ gapless numbering, and Indonesia's `status_hukum`. See @oym7gzus.
 
 from __future__ import annotations
 
+import functools
+import itertools
 import re
 from dataclasses import dataclass
 
@@ -104,37 +106,161 @@ def kanji_number(raw: str) -> int:
     return hundreds + total + current
 
 
-# Per numeral system: how a provision number is spelled, and how to read it. A Japanese article
-# number is followed by 条, which is what bounds it; a branch article (第六条の二) therefore reads
-# as its base, article 6, rather than as article 62.
+@functools.total_ordering
+@dataclass(frozen=True, eq=False)
+class Provision:
+    """A provision number, and the sub-number an amendment inserted under it. @kolycpun.
+
+    Thailand writes `มาตรา ๓๒/๒`, Japan `第六条の二`, common-law drafting `23A`. All three insert a
+    provision without renumbering the ones after it, and reading them as their base — which is what
+    `scan` did — makes an inserted section indistinguishable from a duplicate heading, so an oracle
+    declaring 32 is satisfied by a document carrying only 32/2.
+
+    It **equals and hashes as its own base integer when it has no sub-number**, so an `Expectation`
+    declared over ordinary integers — which is every consumer today — needs no change. `separator`
+    is how the tradition renders it and takes no part in equality or ordering.
+    """
+
+    number: int
+    sub: tuple = ()
+    separator: str = ""
+
+    def _key(self):
+        """Sort key. Each sub-token carries its own kind, so `23 < 23A` and `6/2 < 6/10`."""
+        return (
+            self.number,
+            tuple((1, t, "") if isinstance(t, int) else (2, 0, t) for t in self.sub),
+        )
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Provision):
+            return self._key() == other._key()
+        if isinstance(other, int):
+            return not self.sub and self.number == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.number) if not self.sub else hash(self._key())
+
+    def __lt__(self, other) -> bool:
+        if isinstance(other, int):
+            other = Provision(other)
+        if not isinstance(other, Provision):
+            return NotImplemented
+        return self._key() < other._key()
+
+    def __index__(self) -> int:
+        """The base, so `int()` and `range()` reach through to it."""
+        return self.number
+
+    def __str__(self) -> str:
+        return str(self.number) + "".join(f"{self.separator}{t}" for t in self.sub)
+
+
+def _letter_sub(raw: str) -> tuple:
+    return (raw,) if raw else ()
+
+
+def _split_sub(separator: str, read):
+    def parse(raw: str) -> tuple:
+        return tuple(read(part) for part in (raw or "").split(separator) if part)
+
+    return parse
+
+
+# Per numeral system: how a provision number is spelled, how to read it, how a sub-number is
+# spelled under it, how to read that, and how the tradition renders one. A Japanese article number
+# is followed by 条, which is what bounds it.
+#
+# Korea's `제24조의2` is deliberately absent: matching it needs `조` in the pattern, and the arabic
+# entry is the one every Latin-script corpus uses. A Korean branch article still reads as its base,
+# as it always did. @kolycpun.
 _NUMERALS = {
-    "arabic": (r"(\d{1,4})", _arabic),
-    "roman": (r"([IVXLCDMivxlcdm]{1,9})\b", _roman),
-    "kanji": (r"([一二三四五六七八九十百]{1,6})条", kanji_number),
-    "thai": (r"([๐-๙\d]{1,4})", _thai),
+    "arabic": (r"(\d{1,4})", _arabic, r"([A-Z]{1,3})?", _letter_sub, ""),
+    "roman": (r"([IVXLCDMivxlcdm]{1,9})\b", _roman, "()", _letter_sub, ""),
+    "kanji": (
+        r"([一二三四五六七八九十百]{1,6})条",
+        kanji_number,
+        r"((?:の[一二三四五六七八九十百]{1,6})*)",
+        _split_sub("の", kanji_number),
+        "の",
+    ),
+    "thai": (r"([๐-๙\d]{1,4})", _thai, r"((?:/[๐-๙\d]{1,4})*)", _split_sub("/", _thai), "/"),
 }
 
 
-def _bounded(text: str, boundary: str) -> str:
-    """Everything before the first line matching `boundary`, or all of it if none does."""
-    if not boundary:
-        return text
+def provision(raw: str) -> Provision:
+    """Read the form a table of contents hands you — `23A`, `32/2`, `17` — as a `Provision`.
+
+    A TOC gives a corpus repo strings, and an `Expectation` needs values that compare against what
+    `scan` returns. Refuses anything it cannot read, for the reason every oracle here refuses:
+    guessing produces an expectation that passes documents it should not.
+    """
+    text = ("" if raw is None else str(raw)).strip()
+    match = re.fullmatch(r"(\d{1,4})(?:([A-Z]{1,3})|((?:/\d{1,4})+))?", text)
+    if not match:
+        raise OracleError(
+            f"'{text[:20]}' is not a provision number this package reads. Expected a number, "
+            f"optionally with a letter suffix ('23A') or a slash sub-number ('32/2')."
+        )
+    base, letters, slashed = match.groups()
+    sub = _letter_sub(letters or "") or _split_sub("/", _arabic)(slashed or "")
+    return Provision(int(base), sub, "" if letters else "/")
+
+
+def _compile(pattern: str, name: str, consequence: str):
     try:
-        rx = re.compile(boundary)
+        return re.compile(pattern)
     except re.error as e:
         raise OracleError(
-            f"The boundary '{str(boundary)[:40]}' is not a regular expression: {e}. It marks where "
-            f"the main body ends, so an unusable one would silently scan the schedules too."
+            f"The {name} '{str(pattern)[:40]}' is not a regular expression: {e}. {consequence}"
         ) from e
-    out = []
-    for line in text.splitlines(keepends=True):
-        if rx.search(line):
-            break
-        out.append(line)
-    return "".join(out)
 
 
-def scan(text: str, label: str, numerals: str = "arabic", boundary: str = "") -> list:
+def _window(text: str, start: str, boundary: str) -> str:
+    """The main body: from the first line matching `start` to the first matching `boundary`.
+
+    `start` fails closed when it does not match. An SSO PDF prints its own table of contents before
+    the body, so a truncated extraction still lists its missing tail on its own index — scanning
+    the whole text would let that index vouch for sections the body does not contain, which is the
+    one thing this module exists to stop. @q5fyyb4q.
+    """
+    lines = text.splitlines(keepends=True)
+    if start:
+        rx = _compile(
+            start,
+            "start",
+            "It marks where the main body begins, so an unusable one would silently scan the "
+            "instrument's own contents page as though it were the text.",
+        )
+        opening = next((n for n, line in enumerate(lines) if rx.search(line)), None)
+        if opening is None:
+            raise OracleError(
+                f"No line matches the declared body opener '{str(start)[:40]}', so the body cannot "
+                f"be separated from the front matter. Checking the extraction against the whole "
+                f"text would let the contents page vouch for provisions the body may not carry. "
+                f"Read the extraction by hand before storing it."
+            )
+        lines = lines[opening:]
+    if boundary:
+        rx = _compile(
+            boundary,
+            "boundary",
+            "It marks where the main body ends, so an unusable one would silently scan the "
+            "schedules too.",
+        )
+        lines = list(itertools.takewhile(lambda line: not rx.search(line), lines))
+    return "".join(lines)
+
+
+def scan(
+    text: str,
+    label: str,
+    numerals: str = "arabic",
+    boundary: str = "",
+    terminator: str = "",
+    start: str = "",
+) -> list:
     """Every provision number appearing as a heading, in document order.
 
     **Line-anchored, deliberately.** `มาตรา ๑๗๕` inside a sentence is a cross-reference to another
@@ -145,21 +271,43 @@ def scan(text: str, label: str, numerals: str = "arabic", boundary: str = "") ->
     Duplicates are kept, because a heading appearing twice is itself a signal — a running header
     landing mid-list produced exactly that in UU 28/2014.
 
+    **A sub-number is read, not collapsed onto its base.** `มาตรา ๓๒/๒`, `第六条の二` and `Pasal 13A`
+    are inserted provisions, and reading them as 32, 6 and 13 makes an insertion indistinguishable
+    from a duplicate heading. Each is returned as a `Provision`, which equals its own base integer
+    when it has no sub-number. See @kolycpun.
+
     `boundary` is a regex marking the line where the main body ends; the scan stops there.
     Japanese 附則, a UK schedule, a French annexe and a US appendix all restart their numbering, so
     an unbounded scan reads a correct document as out of order. Bounding rather than tolerating a
     descending step matters twice: a descending step is also what an OCR misread of a heading looks
     like, and a provision surviving only inside a schedule must not satisfy a declaration about the
     main body. See this.i @qd6p2f3x.
+
+    `start` is its mirror, marking where the body begins, for a document that prints its own table
+    of contents first. `terminator` is a regex the number must be followed by, which is what makes
+    a **label-less** scan safe: a Singapore section heading is a bare `3.—(1)`, and `^\\s*\\d+`
+    alone would match most of a document. An empty label with no terminator is therefore refused.
+    See @q5fyyb4q.
     """
     if numerals not in _NUMERALS:
         raise OracleError(
             f"'{str(numerals)[:20]}' is not a numeral system this package reads. Use one of: "
             f"{', '.join(sorted(_NUMERALS))}."
         )
-    pattern, read = _NUMERALS[numerals]
-    rx = re.compile(rf"^[ \t]*{re.escape(label)}[ \t　]*{pattern}", re.MULTILINE)
-    return [read(m.group(1)) for m in rx.finditer(_bounded(text, boundary))]
+    if not label and not terminator:
+        raise OracleError(
+            "A scan with no label needs a terminator — a pattern the number must be followed by, "
+            "such as r'\\.' for a heading written '23A.'. Without one this matches every line "
+            "opening with a digit, and an oracle that matches everything passes everything."
+        )
+    pattern, read, sub_pattern, read_sub, separator = _NUMERALS[numerals]
+    rx = re.compile(
+        rf"^[ \t]*{re.escape(label)}[ \t　]*{pattern}{sub_pattern}{terminator}", re.MULTILINE
+    )
+    return [
+        Provision(read(m.group(1)), read_sub(m.group(2) or ""), separator)
+        for m in rx.finditer(_window(text, start, boundary))
+    ]
 
 
 @dataclass(frozen=True)
@@ -171,6 +319,8 @@ class Expectation:
     numerals: str = "arabic"
     source: str = ""
     boundary: str = ""
+    terminator: str = ""
+    start: str = ""
 
     @classmethod
     def over(
@@ -180,6 +330,8 @@ class Expectation:
         numerals: str = "arabic",
         source: str = "",
         boundary: str = "",
+        terminator: str = "",
+        start: str = "",
     ) -> "Expectation":
         return cls(
             label=label,
@@ -187,6 +339,8 @@ class Expectation:
             numerals=numerals,
             source=source,
             boundary=boundary,
+            terminator=terminator,
+            start=start,
         )
 
     def verify(self, text: str) -> None:
@@ -195,7 +349,9 @@ class Expectation:
         Returns None on success, so it reads as an assertion at a call site rather than as a
         predicate somebody might forget to test.
         """
-        found = scan(text, self.label, self.numerals, self.boundary)
+        found = scan(
+            text, self.label, self.numerals, self.boundary, self.terminator, self.start
+        )
         present = set(found)
         missing = [n for n in self.numbers if n not in present]
         last = max(found) if found else None
@@ -209,13 +365,13 @@ class Expectation:
             parts = [
                 f"Refusing this extraction: it does not match the structure declared for it. "
                 f"{len(present & set(self.numbers))} of {len(self.numbers)} declared "
-                f"'{self.label}' provisions are present."
+                f"{self._kind} provisions are present."
             ]
         else:
             # A partial instrument declares nothing, so "0 of 0 are present" would read as a
             # complete loss rather than as the only check there was.
             parts = [
-                f"Refusing this extraction: nothing was declared about which '{self.label}' "
+                f"Refusing this extraction: nothing was declared about which {self._kind} "
                 f"provisions it should carry, because the source serves only part of this "
                 f"instrument — but the headings it does carry are not in ascending order."
             ]
@@ -225,7 +381,7 @@ class Expectation:
                 f"rather than cut short: {self._name(interior)}."
             )
         if tail:
-            where = f"{self.label} {last}" if last is not None else "nothing at all"
+            where = f"{self.label} {last}".strip() if last is not None else "nothing at all"
             parts.append(
                 f"The text ends at {where}, so this tail is missing: {self._name(tail)}."
             )
@@ -244,8 +400,13 @@ class Expectation:
         )
         raise CompletenessError(" ".join(parts))
 
+    @property
+    def _kind(self) -> str:
+        """What to call these provisions in a message. Singapore's carry no label at all."""
+        return f"'{self.label}'" if self.label else "unlabelled"
+
     def _name(self, numbers) -> str:
-        return ", ".join(f"{self.label} {n}" for n in numbers)
+        return ", ".join(f"{self.label} {n}".strip() for n in numbers)
 
 
 _TOC_GROUP = re.compile(r"\(([^)]*)\)")
@@ -383,7 +544,7 @@ def korean_gapless(text: str) -> Expectation:
         )
     return Expectation.over(
         "제",
-        range(1, max(found) + 1),
+        range(1, max(found).number + 1),
         source=(
             "Korean gapless article numbering, where a repealed article survives as a 삭제 "
             "placeholder. Derived from the extraction, so it cannot see a truncated tail."
