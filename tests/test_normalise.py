@@ -11,7 +11,9 @@ import re
 import pytest
 
 from lawcorpus.normalise import (
+    NUMERAL_SYSTEMS,
     SEPARATORS,
+    fold_digits,
     normalise_query,
     normalise_text,
     search_key,
@@ -117,8 +119,9 @@ class TestNormaliseQuery:
         for typed in SEPARATORS:
             assert re.search(normalise_query(f"물리적{typed}기술적"), text)
 
-    def test_ascii_is_left_alone_so_a_character_class_still_works(self):
-        assert normalise_query(r"Pasal [0-9]{1,3}") == r"Pasal [0-9]{1,3}"
+    def test_a_character_class_still_works_now_that_ascii_is_folded(self):
+        # @4zotolb5 reverses the "ASCII is never touched" rule; the class must survive it.
+        assert normalise_query(r"Pasal [0-9]{1,3}") == "Pasal [0-9\u0e50-\u0e59]{1,3}"
 
     def test_regex_metacharacters_survive(self):
         assert normalise_query(r"law(fully|ful)\b") == r"law(fully|ful)\b"
@@ -189,8 +192,8 @@ class TestACjkQueryReachesLetterSpacedText:
     def test_hangul_does_not_because_korean_writes_word_spaces(self):
         assert normalise_query("부칙") == "부칙"
 
-    def test_ascii_is_untouched_so_a_character_class_still_works(self):
-        assert normalise_query("[0-9]{2}") == "[0-9]{2}"
+    def test_a_character_class_still_works_now_that_ascii_is_folded(self):
+        assert normalise_query("[0-9]{2}") == "[0-9\u0e50-\u0e59]{2}"
         assert normalise_query("law(fully|ful)") == "law(fully|ful)"
 
     def test_nothing_is_inserted_where_only_one_side_is_cjk(self):
@@ -210,3 +213,95 @@ class TestACjkQueryReachesLetterSpacedText:
 
     def test_a_full_width_character_is_still_folded_and_escaped(self):
         assert normalise_query("（") == re.escape("(")
+
+
+class TestTheTwoFoldsAgreeAboutNumerals:
+    """@4zotolb5 — `search_key` folded Thai digits and `normalise_query` did not, so
+    `lawcite --grep 'มาตรา 7'` returned zero against a corpus holding `มาตรา ๗`.
+
+    The agreement is asserted per system rather than per case, so a system added to
+    `NUMERAL_SYSTEMS` without a query-side fold fails here rather than in a corpus repo.
+    """
+
+    @pytest.mark.parametrize("system", sorted(NUMERAL_SYSTEMS))
+    def test_search_key_folds_every_digit_of_every_system_onto_arabic(self, system):
+        for value, digit in enumerate(NUMERAL_SYSTEMS[system]):
+            assert search_key(digit) == str(value)
+
+    @pytest.mark.parametrize("system", sorted(NUMERAL_SYSTEMS))
+    def test_an_arabic_query_reaches_every_digit_of_every_system(self, system):
+        for value, digit in enumerate(NUMERAL_SYSTEMS[system]):
+            assert re.search(normalise_query(str(value)), digit), (system, value)
+
+    @pytest.mark.parametrize("system", sorted(NUMERAL_SYSTEMS))
+    def test_a_native_query_still_reaches_arabic_text(self, system):
+        for value, digit in enumerate(NUMERAL_SYSTEMS[system]):
+            assert re.search(normalise_query(digit), str(value)), (system, value)
+
+    def test_the_positive_control_for_thai_is_the_provision_that_returned_zero(self):
+        # thailand-id: the stored text carries the source's own digits throughout.
+        rx = re.compile(normalise_query("มาตรา 7"))
+        assert rx.search("มาตรา ๗")
+        assert rx.search("มาตรา 7")
+
+    def test_the_positive_control_for_arabic_is_a_latin_corpus_left_working(self):
+        rx = re.compile(normalise_query("Pasal 22"))
+        assert rx.search("Pasal 22")
+        assert not rx.search("Pasal 23")
+
+    def test_fold_digits_is_the_one_table_both_sides_read(self):
+        assert fold_digits("มาตรา ๓๒/๒") == "มาตรา 32/2"
+        assert fold_digits("Pasal 22") == "Pasal 22"
+
+
+class TestAQueryDigitIsExpandedWithoutBreakingTheRegex:
+    """The price of @4zotolb5: `normalise_query` now tracks where in a regex it is standing."""
+
+    def test_a_bare_digit_becomes_a_class_of_its_spellings(self):
+        assert normalise_query("7") == "[7๗]"
+
+    def test_a_digit_range_in_a_class_gains_the_parallel_range(self):
+        # The case @liv2lsxs refused the whole fold over.
+        assert normalise_query("[0-9]") == "[0-9๐-๙]"
+        assert re.search(normalise_query("มาตรา [0-9]+"), "มาตรา ๓๒")
+
+    def test_a_native_digit_range_gains_arabic_too(self):
+        assert normalise_query("[๐-๙]") == "[0-9๐-๙]"
+
+    def test_a_bare_digit_inside_a_class_is_added_to_it_rather_than_nested(self):
+        assert normalise_query("[37]") == "[3๓7๗]"
+
+    def test_a_quantifier_is_left_alone(self):
+        assert normalise_query(r"\d{1,3}") == r"\d{1,3}"
+        assert re.search(normalise_query(r"[0-9]{1,3}"), "๒๕๖๒")
+
+    def test_an_escaped_digit_is_left_alone_so_a_backreference_still_works(self):
+        assert normalise_query(r"(a)\1") == r"(a)\1"
+
+    def test_an_escaped_class_delimiter_does_not_open_a_class(self):
+        assert normalise_query(r"\[7\]") == r"\[[7๗]\]"
+
+    def test_a_range_whose_ends_are_from_different_systems_is_left_alone(self):
+        assert normalise_query("[0-๙]") == "[0-๙]"
+
+    def test_a_descending_range_is_left_as_the_caller_wrote_it(self):
+        # An invalid range stays invalid, so `cite.py` reports the caller's error, not ours.
+        assert normalise_query("[9-0]") == "[9-0]"
+
+    def test_a_hyphen_a_layout_fold_produces_is_escaped_inside_a_class(self):
+        # U+2011 folds to '-', which would silently become a range inside a class.
+        assert re.search(normalise_query("[a‑z]"), "-")
+        assert not re.search(normalise_query("[a‑z]"), "m")
+
+    def test_a_separator_inside_a_class_no_longer_nests_one(self):
+        # @liv2lsxs documented this as a hole it would not parse for; the scanner closes it.
+        rx = re.compile(normalise_query("[·x]"))
+        assert rx.search("ㆍ") and rx.search("x")
+
+    def test_no_optional_space_is_inserted_inside_a_class(self):
+        # `[個人]` had been rewritten into something that is not a character class at all.
+        rx = re.compile(normalise_query("[個人]"))
+        assert rx.search("個") and rx.search("人")
+
+    def test_an_unclosed_quantifier_brace_suppresses_the_fold_rather_than_corrupting_it(self):
+        assert normalise_query("a{7") == "a{7"

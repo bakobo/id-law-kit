@@ -27,16 +27,26 @@ from collections import Counter
 from pathlib import Path
 
 from .errors import LawcorpusError
-from .normalise import looks_cjk, normalise_text
+from .normalise import DIGITS, fold_digits, looks_cjk, normalise_text
 
 # How many lines at each edge of a page can be furniture.
 EDGE_LINES = 3
 # A line must appear at the same edge on at least this fraction of pages to count as furniture.
 FURNITURE_THRESHOLD = 0.6
+# A *shape* must recur on at least this fraction, which is lower, and the difference is forced
+# rather than tuned. Printed legal publishing mirrors its running heads between recto and verso —
+# SSO puts the page number on the left of an even page and the right of an odd one — so a mirrored
+# header is two shapes each appearing on about half the pages, and any threshold above one half
+# structurally cannot see one. See @ly7tho4y.
+SHAPE_THRESHOLD = 0.4
 
 _PAGE_NUMBER = re.compile(
     r"^\s*(?:page\s+)?\d+\s*(?:of\s+\d+)?\s*$|^\s*-\s*\d+\s*-\s*$", re.IGNORECASE
 )
+# A run of digits in any numeral system the package declares, so a Thai page number is a field
+# here and not a word.
+_DIGIT_RUN = re.compile(f"[{re.escape(DIGITS)}]+")
+_FIELD = "\x00"
 _BLANKS = re.compile(r"\n{3,}")
 _MULTISPACE = re.compile(r"[ \t]{2,}")
 # Structural openers: a line starting with one of these begins a new block and must never be
@@ -48,7 +58,7 @@ _STRUCTURAL = re.compile(
     r"""^\s*(?:
         \u00a7                      # section sign
       | \([a-zA-Z0-9]{1,4}\)        # (a) (1) (iii) (A)
-      | \d+\.                       # 1.
+      | \d+[A-Z]{0,2}\.             # 1.  23A.  16O.  — see @zr3b5ll2
       | ARTICLE\b | CHAPTER\b | DIVISION\b | TITLE\b
       | Note:
       | [A-Z][A-Z \u2019'\-]{6,}\s*$   # an all-caps heading line
@@ -65,27 +75,83 @@ class PdfError(LawcorpusError):
     code = "BK_PDF_EXTRACT"
 
 
+def _edge_lines(page: str) -> list:
+    """The lines at the top and bottom of one page, stripped, with no line counted twice.
+
+    The head and tail slices must not overlap, or a short page counts its own lines twice and a
+    line appearing once crosses the threshold on its own.
+    """
+    lines = [ln.strip() for ln in page.splitlines() if ln.strip()]
+    return lines[:EDGE_LINES] + lines[max(EDGE_LINES, len(lines) - EDGE_LINES):]
+
+
+def _shape(line: str) -> str:
+    """One line with its whitespace collapsed and every numeric field masked out."""
+    return _MULTISPACE.sub(" ", _DIGIT_RUN.sub(_FIELD, line))
+
+
+def _fields(line: str) -> tuple:
+    """The value of each numeric field in `line`, read through the one numeral table."""
+    return tuple(int(fold_digits(m.group())) for m in _DIGIT_RUN.finditer(line))
+
+
+def _counts_up(values: list) -> bool:
+    """Does some one field strictly increase across the pages carrying this shape?
+
+    The condition that makes the shape rule safe. "Constant except for a varying number" on its
+    own also describes the edge rows of a long numbered table, and a rule that eats content to
+    remove furniture is worse than the furniture. A field that counts up with the pages is a page
+    number, and nothing else in a statute behaves that way. See @ly7tho4y.
+    """
+    return any(
+        all(row[field] < nxt[field] for row, nxt in zip(values, values[1:]))
+        for field in range(len(values[0]))
+    )
+
+
+def _furniture_shapes(pages: list, threshold: int) -> set:
+    """Shapes that recur at the page edges with a page number embedded in them.
+
+    `strip_repeated_furniture` matches a running head by its exact text, and a publisher that
+    prints the page number *inside* the header defeats that completely, because no two pages then
+    carry the same string. SSO writes `2020 Ed.   National Registration Act 1965   6`; measured on
+    the PDPA, 124 of 124 footers were stripped and the header survived on 120 of 123 pages,
+    landing mid-provision through a 194,000-character document.
+    """
+    seen = {}
+    for page in pages:
+        for shape, fields in {_shape(ln): _fields(ln) for ln in reversed(_edge_lines(page))}.items():
+            seen.setdefault(shape, []).append(fields)
+    return {
+        shape
+        for shape, values in seen.items()
+        if len(values) >= threshold
+        and _FIELD in shape
+        and any(ch.isalpha() for ch in shape)
+        and _counts_up(values)
+    }
+
+
 def strip_repeated_furniture(pages: list) -> list:
     """Drop running headers, footers, and page numbers.
 
-    Frequency alone is not enough: "Page 1 of 127" never repeats verbatim, so it is matched by
-    shape instead. And frequency is measured only at the *edges* of a page — a phrase appearing in
-    the body of every page is a defined term, not furniture.
+    Frequency alone is not enough, and it fails in two directions. "Page 1 of 127" never repeats
+    verbatim, so it is matched by shape instead. And a running head carrying its own page number
+    never repeats either, so it is matched by a second shape rule — a line constant except for a
+    field that counts up with the pages. Frequency is measured only at the *edges* of a page: a
+    phrase appearing in the body of every page is a defined term, not furniture.
     """
     if len(pages) < 2:
         return list(pages)
 
     edge_counts = Counter()
     for page in pages:
-        lines = [ln.strip() for ln in page.splitlines() if ln.strip()]
-        # The head and tail slices must not overlap, or a short page counts its own lines twice
-        # and a line appearing once crosses the threshold on its own.
-        head, tail = lines[:EDGE_LINES], lines[max(EDGE_LINES, len(lines) - EDGE_LINES):]
-        # One vote per page per distinct line, for the same reason.
-        edge_counts.update(set(head + tail))
+        # One vote per page per distinct line, for the reason `_edge_lines` gives.
+        edge_counts.update(set(_edge_lines(page)))
 
     threshold = max(2, int(len(pages) * FURNITURE_THRESHOLD))
     furniture = {line for line, n in edge_counts.items() if n >= threshold}
+    shapes = _furniture_shapes(pages, max(2, int(len(pages) * SHAPE_THRESHOLD)))
 
     out = []
     for page in pages:
@@ -94,7 +160,11 @@ def strip_repeated_furniture(pages: list) -> list:
         for index, line in enumerate(lines):
             stripped = line.strip()
             at_edge = index < EDGE_LINES or index >= n - EDGE_LINES
-            if at_edge and (stripped in furniture or _PAGE_NUMBER.match(stripped)):
+            if at_edge and (
+                stripped in furniture
+                or _PAGE_NUMBER.match(stripped)
+                or (stripped and _shape(stripped) in shapes)
+            ):
                 continue
             keep.append(line)
         out.append("\n".join(keep))

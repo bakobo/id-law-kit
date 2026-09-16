@@ -25,6 +25,12 @@ already did.
 Two traps cannot be fixed on this side at all, and `normalise_query` carries them instead: full-width
 enumerators are structural, so provision addressing breaks if they are stripped, and U+318D must
 survive in the text while still being reachable by a user who types a middle dot. See @liv2lsxs.
+
+**A numeral system is a third.** Thai statutes number their provisions in Thai digits and the stored
+text keeps them, because they are the authentic text rather than layout. So `มาตรา 7` and `มาตรา ๗`
+have to meet in the query, which is why `normalise_query` now rewrites ASCII — reversing @liv2lsxs's
+refusal to — and why it has to understand enough regex syntax to leave `[0-9]` and `\\d{1,3}` alone
+while doing it. See @4zotolb5.
 """
 
 from __future__ import annotations
@@ -64,12 +70,41 @@ SEPARATORS = frozenset("\u318d\u00b7\u2022\u30fb\uff65")
 _SEPARATOR_CLASS = "[" + "".join(sorted(SEPARATORS)) + "]"
 _SEPARATOR_CANONICAL = "\u00b7"
 
-# Thai digits, for the comparison fold only. Thailand's law list carries the PDPA twice, once as
-# "พ.ศ. 2562" and once as "พ.ศ. ๒๕๖๒", and a filter in either numeral system silently drops the
-# other. The stored text keeps its own digits: they are the authentic text.
-_THAI_DIGITS = {chr(0x0E50 + n): str(n) for n in range(10)}
+ASCII_DIGITS = "0123456789"
+
+# Every non-Arabic decimal system the programme's corpora actually use, each written out in value
+# order. Thailand's law list carries the PDPA twice, once as "พ.ศ. 2562" and once as "พ.ศ. ๒๕๖๒",
+# and a filter in either system silently drops the other. The stored text keeps its own digits:
+# they are the authentic text, not layout, so the two systems meet in the comparison and in the
+# query rather than in the document.
+#
+# Deliberately a short declared list rather than every Unicode decimal script. A sixty-character
+# class per digit buys reach into corpora nobody holds; a script is added here in one line when a
+# corpus for it exists, and `tests/test_normalise.py` then asserts both folds agree about it.
+# CJK numerals are **not** here and are not a candidate: 第六条 is positional (十, 百), not ten
+# characters standing in for ten others, so reversing it into a query means generating every
+# spelling of a number. `completeness.kanji_number` reads that direction; see @4zotolb5.
+NUMERAL_SYSTEMS = {
+    "thai": "๐๑๒๓๔๕๖๗๘๙",
+}
+
+# digit -> its value, and digit -> every spelling of that value across the systems above.
+_DIGIT_VALUE = {ch: n for n in range(10) for ch in
+                (ASCII_DIGITS[n], *(digits[n] for digits in NUMERAL_SYSTEMS.values()))}
+_DIGIT_SYSTEM = {
+    **{ch: "arabic" for ch in ASCII_DIGITS},
+    **{ch: name for name, digits in NUMERAL_SYSTEMS.items() for ch in digits},
+}
+_SPELLINGS = {
+    ch: ASCII_DIGITS[value] + "".join(digits[value] for digits in NUMERAL_SYSTEMS.values())
+    for ch, value in _DIGIT_VALUE.items()
+}
+_DIGIT_FOLD = str.maketrans({ch: ASCII_DIGITS[value] for ch, value in _DIGIT_VALUE.items()})
+DIGITS = "".join(sorted(_DIGIT_VALUE))
+
 _COMPARISON_TABLE = str.maketrans(
-    {**LAYOUT_ONLY, **_THAI_DIGITS, **{ch: _SEPARATOR_CANONICAL for ch in SEPARATORS}}
+    {**LAYOUT_ONLY, **{ch: ASCII_DIGITS[v] for ch, v in _DIGIT_VALUE.items()},
+     **{ch: _SEPARATOR_CANONICAL for ch in SEPARATORS}}
 )
 
 _WHITESPACE = re.compile(r"\s+")
@@ -134,10 +169,43 @@ def normalise_text(text: str) -> str:
     return text.translate(_LAYOUT_TABLE)
 
 
+def fold_digits(text: str) -> str:
+    """Rewrite every digit of every declared system as its Arabic spelling.
+
+    The one table both folds read. Public because furniture detection in `pdf.py` needs to read a
+    page number written in Thai digits, and because a caller comparing two provision numbers wants
+    this without `search_key`'s casefolding and whitespace collapse.
+    """
+    return text.translate(_DIGIT_FOLD)
+
+
+def _class_member(text: str) -> str:
+    """A folded character rendered safe for the inside of a character class.
+
+    Escaped rather than inserted bare: U+2011 folds to `-`, which would silently turn `[a‑z]`
+    into the range `a-z`.
+    """
+    return re.escape(text)
+
+
+def _range_expansion(low: str, high: str) -> str:
+    """`0-9` plus the same range in every other system, or the caller's own text unchanged.
+
+    Unchanged when the ends are from different systems or descending, because both are the
+    caller's error and rewriting one would hide it behind ours.
+    """
+    if _DIGIT_SYSTEM[low] != _DIGIT_SYSTEM[high] or _DIGIT_VALUE[low] > _DIGIT_VALUE[high]:
+        return f"{low}-{high}"
+    first, last = _DIGIT_VALUE[low], _DIGIT_VALUE[high]
+    spans = [f"{ASCII_DIGITS[first]}-{ASCII_DIGITS[last]}"]
+    spans += [f"{digits[first]}-{digits[last]}" for digits in NUMERAL_SYSTEMS.values()]
+    return "".join(spans)
+
+
 def normalise_query(pattern: str) -> str:
     """Rewrite a search pattern so it can reach text that has been through `normalise_text`.
 
-    Three rewrites, all confined to non-ASCII input:
+    Four rewrites. Three of them were once confined to non-ASCII input:
 
     - a character the text-side fold rewrites is rewritten the same way here, then regex-escaped,
       so that a user who types a full-width parenthesis gets a literal rather than a capturing
@@ -151,26 +219,83 @@ def normalise_query(pattern: str) -> str:
       unconditionally would weld `第一章　総則` into one token, and telling the two cases apart needs
       a lexicon — so it is carried here, which is what @liv2lsxs is for. See @ux7izhdj.
 
-    ASCII is never touched, which is what keeps `[0-9]` and `law(fully|ful)` working. The space is
-    inserted only where *both* neighbours are CJK, so it can never land beside a metacharacter,
-    none of which is CJK.
+    The fourth rewrites ASCII, which @liv2lsxs had refused to do: **a digit expands to a class
+    holding that digit's spelling in every system in `NUMERAL_SYSTEMS`**, so `มาตรา 7` reaches
+    `มาตรา ๗`. A provision is addressed by its number, so a corpus whose digits are Thai is
+    unreachable to a user typing Arabic — a zero that reads as a finding, produced by the tool
+    built to prevent it. See @4zotolb5.
 
-    Two known holes, both documented rather than parsed for. A separator typed *inside* a character
-    class the caller wrote produces a nested class. And a CJK phrase query can now match across a
-    genuine word separator — 「個人情報」 hits a line reading 「個人 情報」 — which is a false positive,
+    Rewriting ASCII costs a scanner, because `[0-9]`, `\\d{1,3}` and `\\1` must survive it. Three
+    states are tracked and **nothing is rewritten in two of them**: after a backslash, and inside
+    a `{...}` quantifier. Inside a character class a digit is *added to* the class rather than
+    nested inside one, and a range of digits gains the parallel range in each system, so `[0-9]`
+    becomes `[0-9๐-๙]`. A `{` that never closes suppresses the fold to the end of the pattern
+    rather than corrupting it.
+
+    Class-awareness closes @liv2lsxs's documented hole as a side effect: a separator inside a class
+    now contributes its five spellings as members instead of a nested class, and @ux7izhdj's
+    optional space is no longer inserted inside a class, where it produced something that was not a
+    character class at all. The space is otherwise inserted only where *both* neighbours are CJK,
+    so it can never land beside a metacharacter, none of which is CJK.
+
+    One known hole remains, documented rather than parsed for: a CJK phrase query can match across
+    a genuine word separator — 「個人情報」 hits a line reading 「個人 情報」 — which is a false positive,
     visible as soon as the hit is read, where what it replaces is a zero that reads as a finding.
     """
     out, previous = [], ""
-    for ch in pattern:
-        if is_cjk(ch) and is_cjk(previous):
-            out.append(_LETTER_SPACE)
-        if ch in SEPARATORS:
-            out.append(_SEPARATOR_CLASS)
-        elif ch in LAYOUT_ONLY:
-            out.append(re.escape(LAYOUT_ONLY[ch]))
-        else:
+    escaped = in_class = in_quantifier = False
+    index, chars, length = 0, list(pattern), len(pattern)
+
+    while index < length:
+        ch = chars[index]
+        index += 1
+        if escaped:
             out.append(ch)
-        previous = ch
+            escaped = False
+        elif ch == "\\":
+            out.append(ch)
+            escaped = True
+        elif in_quantifier:
+            out.append(ch)
+            in_quantifier = ch != "}"
+        elif in_class:
+            in_class = ch != "]"
+            if not in_class:
+                out.append(ch)
+            elif (
+                index + 1 < length
+                and chars[index] == "-"
+                and ch in _DIGIT_VALUE
+                and chars[index + 1] in _DIGIT_VALUE
+            ):
+                out.append(_range_expansion(ch, chars[index + 1]))
+                index += 2
+            elif ch in _DIGIT_VALUE:
+                out.append(_SPELLINGS[ch])
+            elif ch in SEPARATORS:
+                out.append("".join(sorted(SEPARATORS)))
+            elif ch in LAYOUT_ONLY:
+                out.append(_class_member(LAYOUT_ONLY[ch]))
+            else:
+                out.append(ch)
+        else:
+            if is_cjk(ch) and is_cjk(previous):
+                out.append(_LETTER_SPACE)
+            if ch == "[":
+                in_class = True
+                out.append(ch)
+            elif ch == "{":
+                in_quantifier = True
+                out.append(ch)
+            elif ch in _DIGIT_VALUE:
+                out.append(f"[{_SPELLINGS[ch]}]")
+            elif ch in SEPARATORS:
+                out.append(_SEPARATOR_CLASS)
+            elif ch in LAYOUT_ONLY:
+                out.append(re.escape(LAYOUT_ONLY[ch]))
+            else:
+                out.append(ch)
+        previous = ch if not (escaped or in_class or in_quantifier) else ""
     return "".join(out)
 
 

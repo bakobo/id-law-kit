@@ -224,3 +224,95 @@ class TestExtractWithoutPoppler:
         with pytest.raises(mod.PdfError) as e:
             mod.extract(pdf)
         assert "poppler" in str(e.value)
+
+
+class TestALetteredSectionNumberOpensABlock:
+    """@zr3b5ll2 — `23A.` was not a structural opener, so the marginal note above it was welded
+    onto the heading and the section stopped being line-anchored. Measured on NRA 1965: 33 of 34
+    sections scan and the one that fails is the lettered one.
+    """
+
+    def test_a_plain_numeric_heading_was_already_safe(self):
+        out = clean_pages(["Marginal note\n17.—(1) A person must register."])
+        assert "\n17.—(1) A person must register." in out
+
+    def test_a_lettered_heading_is_no_longer_welded_to_the_line_above(self):
+        out = clean_pages(["Marginal note\n23A.—(1) The Registrar may issue."])
+        assert "\n23A.—(1) The Registrar may issue." in out
+
+    def test_the_whole_of_part_2a_survives(self):
+        # ss.16A-16S of the Electronic Transactions Act 2010 — singapore-id's central finding.
+        page = "\n".join(f"Marginal note\n16{letter}.—(1) Provision text." for letter in "AOS")
+        out = clean_pages([page])
+        for letter in "AOS":
+            assert f"\n16{letter}.—(1) Provision text." in out
+
+    def test_a_wrapped_sentence_is_still_rejoined(self):
+        # The change must not turn every capitalised continuation into a new block.
+        out = clean_pages(["means the California\nPrivacy Protection Agency."])
+        assert "means the California Privacy Protection Agency." in out
+
+
+SSO_PAGES = [
+    "2020 Ed.   National Registration Act 1965   4\n"
+    "(a) the name and sex of every person registered\nand the address of that person.",
+    "5   National Registration Act 1965   2020 Ed.\n"
+    "(b) either generally or specially and subject\nto any conditions imposed.",
+    "2020 Ed.   National Registration Act 1965   6\n"
+    "(c) the Registrar may require a person to\nfurnish such particulars.",
+    "7   National Registration Act 1965   2020 Ed.\n"
+    "(d) no person shall be required to furnish\nany particulars twice.",
+]
+
+
+class TestFurnitureWithAnEmbeddedPageNumber:
+    """@ly7tho4y — SSO writes the page number inside the running head, so no two pages carry the
+    same string and the repeated-text rule finds nothing. Measured on the PDPA: 124 of 124 footers
+    stripped, and the header surviving on 120 of 123 pages.
+    """
+
+    def test_the_running_head_goes_even_though_no_two_pages_match(self):
+        out = "\n".join(strip_repeated_furniture(SSO_PAGES))
+        assert "National Registration Act 1965" not in out
+
+    def test_both_the_recto_and_the_verso_form_go(self):
+        # Printed legal publishing mirrors the head, so each form is on about half the pages and
+        # no threshold above one half can see either.
+        out = strip_repeated_furniture(SSO_PAGES)
+        assert not any("2020 Ed." in page for page in out)
+
+    def test_the_operative_text_survives(self):
+        out = "\n".join(strip_repeated_furniture(SSO_PAGES))
+        assert "the name and sex of every person registered" in out
+        assert "no person shall be required to furnish" in out
+
+    def test_a_line_whose_number_does_not_count_up_with_the_pages_is_kept(self):
+        # "Constant except for a number" also describes a numbered table, and eating content to
+        # remove furniture is worse than the furniture.
+        pages = [f"Form {n} of the Schedule\nbody {n} here" for n in (3, 1, 4, 2)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("Form") == 4
+
+    def test_a_shape_with_no_letters_is_left_to_the_page_number_rule(self):
+        pages = [f"{n}\nparagraph {letter} of the Act" for n, letter in enumerate("abcd", start=1)]
+        out = strip_repeated_furniture(pages)
+        assert all(page.startswith("paragraph ") for page in out)
+
+    def test_a_repeated_line_with_no_number_in_it_needs_the_text_rule_and_its_threshold(self):
+        # Two of five pages is below FURNITURE_THRESHOLD and below the shape rule's floor of two.
+        pages = ["NOTICE\nbody one", "NOTICE\nbody two", "a\nb", "c\nd", "e\nf"]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("NOTICE") == 2
+
+    def test_a_shape_appearing_on_too_few_pages_is_kept(self):
+        pages = [f"Table {n} follows\nbody {n}" for n in range(1, 3)] + [
+            f"unrelated {n}\nbody {n}" for n in range(3, 9)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("Table") == 2
+
+    def test_a_head_carrying_thai_digits_is_recognised_too(self):
+        # The digit runs are read through the one numeral table, not through ASCII alone.
+        pages = [f"หน้า ๔{d}   ราชกิจจานุเบกษา\nเนื้อหา {d}" for d in "๑๒๓๔"]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "ราชกิจจานุเบกษา" not in out
