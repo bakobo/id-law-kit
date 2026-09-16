@@ -180,3 +180,43 @@ Shared method and tooling for the identity-law corpus programme = goal:
                 user-written character class produces a nested class that silently matches the
                 wrong thing; it is documented rather than parsed for, because parsing a regex to
                 normalise it costs more than the trap does.
+
+    An extraction is refused unless it matches a declared structure = decision:
+      id: zpycgven
+      why: >
+        `method.md` §6's existing guard refuses an extraction that is *empty*. Indonesia produced
+        the case it cannot see: UU 27/2022 is a 400-dpi CCITT scan whose OCR layer extracts to 52 KB
+        of entirely plausible Indonesian and has silently lost Pasal 22, 70 and 72 and the whole of
+        BAB XI–XII. It is full, it reads correctly, and three of the seventy-six articles of the
+        Personal Data Protection Law are simply not there — `Pasal 22` returns 0 while `Pasal 21`
+        returns 3 and `Pasal 23` returns 2. So a completeness oracle compares an extraction against
+        a declared expected structure and **refuses to store on a mismatch**, following the
+        California precedent in `method.md` §2 where the harvest aborts against the OAL notice
+        rather than accept a chapter that is short. Chose an abort over a warning or a recorded
+        `extraction_risk` flag, because a warning is a thing a later agent reads past and the corpus
+        is the evidence base for negative claims — a missing provision manufactures "the law
+        nowhere requires X" out of an OCR failure. Chose to name the missing provisions in the error
+        rather than report a count mismatch, because a count tells the next reader to go looking
+        while a list tells them where. Tradeoff: an instrument whose structure nobody has declared
+        is stored unchecked, so the oracle's value is bounded by how many sources hand one over —
+        which is why the free ones below matter more than the machinery.
+      children:
+        The three free oracles Phase 0 found are wired in, not hand-declared = decision:
+          id: oym7gzus
+          why: >
+            Hand-declaring an expected structure per instrument is the cost that would stop this
+            check being used, so three sources that state their own shape are built in. Japan's
+            per-instrument `<TOC><ArticleRange>` is authored by the publisher rather than by our
+            parser, which makes it a genuinely independent oracle and a better one than the
+            California OAL notice because it ships inside every instrument. Korea's article
+            numbering is gapless from 1 to the maximum, because repealed articles survive as `삭제`
+            placeholders rather than being removed — it held 7 for 7 across the instruments Phase 0
+            retrieved. Indonesia's per-record `status_hukum` maps onto the `validity` vocabulary
+            directly (`berlaku` → in-force, `sebagian` → amended, `dicabut` → repealed), so one
+            corpus gets machine-derived validity where `taxonomy.md` §3 assumes hand curation.
+            Rejected treating Korea's rule as general: it derives the expectation from the
+            extraction itself, so it catches an interior gap and is blind to a truncated tail, and
+            saying so in the docstring is worth more than pretending otherwise. Tradeoff: three
+            jurisdiction-specific readers in a jurisdiction-neutral package, accepted because the
+            alternative is the same code written five times in five corpus repos, which is the
+            duplication @s62c4j exists to prevent.
