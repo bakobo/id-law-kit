@@ -546,6 +546,41 @@ Shared method and tooling for the identity-law corpus programme = goal:
         `\d+\.` and still is, so the change adds no new false opener — but it does mean a document
         whose lines genuinely begin `12A.` mid-sentence will no longer be rejoined, which is the
         direction this package errs in deliberately: an unjoined line is visible, a welded one is not.
+      children:
+        Structural openers are a registry of traditions, not one common-law regex = decision:
+          id: zzqzaku4
+          why: >
+            `_STRUCTURAL` is number-leading throughout — `\d+[A-Z]{0,2}\.`, `(a)`, `ARTICLE`,
+            `CHAPTER` — which is how common-law drafting numbers a provision and is not how most of
+            the world does. Indonesian puts the label first: `Pasal 13A`, `BAB XI`, `Bagian Kesatu`,
+            `Menimbang`. `indonesia-id` measured the cost of the kit's version against its own:
+            substituting ours **refuses 8 of the 11 stored instruments**, UU 27/2022 falling to 57 of
+            75 articles, UU 23/2006 to 66 of 107, Perpres 95/2018 to 27 of 77. That repo's sharpest
+            observation is the one to keep: our all-caps alternative matches `BAB XVII` while failing
+            `BAB I`, which is the worst possible shape, because it welds exactly the chapters an
+            ordering check would have caught.
+            Chose a `STRUCTURAL_OPENERS` registry — one named tradition per entry, each a regex
+            fragment with its own examples pinned in the tests — and one compiled union used by both
+            consumers of the idea: the rejoiner, which must not weld a heading to the line above, and
+            @lbqi475m's furniture rule, which must not delete one. A tradition is added in one line
+            and both paths gain it, which is the property a second regex bolted beside the first does
+            not have. `structural_pattern(*traditions)` is exposed for a caller that wants a subset.
+            The union is the default rather than a `traditions=` argument the caller must get right,
+            for @amdvdsah's reason: a document does not reliably declare its tradition and the caller
+            frequently does not know either. The cost of carrying every tradition over an English
+            corpus is a line starting `Pasal` or `มาตรา` not being rejoined, which does not occur;
+            the cost of defaulting to common-law is `indonesia-id`'s 8 of 11, which did.
+            Four traditions are registered on the evidence in hand: `common-law` (what
+            `_STRUCTURAL` already was), `indonesian` (lifted from `indonesia-id/tools/indonesian.py`,
+            which is measured over eleven instruments), `thai` and `japanese` (`มาตรา`/`หมวด`,
+            `第N条`/`第N章` — the labels those corpora already hand `completeness.scan`, so the
+            vocabulary is not invented here either). Rejected inferring the tradition from the script,
+            which is @amdvdsah's refuted design in a new place — Indonesian is Latin-scripted.
+            Rejected leaving it in `indonesia-id`, which is @s62c4j's whole premise: the next
+            civil-law corpus writes the same regex again and gets it subtly different.
+            Tradeoff: one pattern now carries four traditions' vocabulary, so a false opener in any
+            of them is a false opener everywhere, and the tests pin each tradition's examples
+            precisely because the union makes a mistake travel.
 
     Furniture is recognised by its shape, not only by its repeated text = decision:
       id: ly7tho4y
@@ -581,6 +616,103 @@ Shared method and tooling for the identity-law corpus programme = goal:
         pages with a page-correlated number in it, and the three conditions are what make that
         unlikely rather than impossible; `raw_pages` remains available for a caller that needs the
         pages before any of this runs.
+      children:
+        The shape rule counted the wrong pages, missed mirrors, and deleted provision headings = decision:
+          id: lbqi475m
+          why: >
+            Three corpora measured three independent defects in @ly7tho4y's shape rule, and they are
+            one change because each fix moves the rule's safety margin and the other two spend it.
+            **The denominator was every page.** Only pages carrying a running head can vote for one,
+            and `singapore-id` measured the consequence on the Interpretation Act 1965: 63 pages of
+            which 18 are front matter and contents with no running head at all, mirrored recto/verso
+            templates on 22 and 23 of the remaining 45, against a bar of `int(63 * 0.4)` = 25. Each
+            half misses by two, nothing is stripped, and with that repo's local strip disabled 69
+            header lines survive — one of them welded to the front of a definition, which is
+            @ly7tho4y's own failure returning through the rule written to stop it.
+            **The floor was an absolute count wearing a fraction.** `max(2, int(len(pages) * 0.4))`
+            is 2 for every document up to four pages, so `japan-id` measured a *mirrored* head
+            stripped on 0 of 2 pages and 2 of 3, working only from 4 pages up, while `indonesia-id`
+            measured the same rule firing correctly at every length from 2 to 11 on *non-mirrored*
+            heads. Both reports are true: the floor is right for a head that appears on every page
+            and wrong for one that alternates, because an alternating head is two templates each
+            holding half the evidence.
+            **And the premise that made the rule safe is false.** @ly7tho4y asserts that a field
+            counting up with the pages is a page number and nothing else in a statute behaves that
+            way. `Pasal N` in a page's top three lines counts up with the pages too. `indonesia-id`
+            measured it on a synthetic statute at 6, 12 and 40 pages: **0 of 40 article headings
+            kept**. That corpus was bitten only mildly — three lost lines were page-foot catchwords —
+            but the rule cannot tell an article heading from a running head, and a cleaner that
+            silently deletes provision headings is worse than the furniture it removes. This is the
+            defect that forces the change; the other two only make the rule miss furniture.
+            Chose three fixes that each address one premise, and a fourth thing deliberately left
+            alone. **The denominator is the span the template covers** — first page carrying it to
+            last — rather than the document, because a running head that starts after the contents
+            page and stops before the schedules should be judged on the territory it runs through.
+            The span must itself reach `SHAPE_THRESHOLD` of the document, which is what stops a
+            template on pages 1 and 2 of a sixty-page instrument scoring 2 of 2 and being deleted.
+            On the Interpretation Act each half is then 22 of the 45 pages it spans, which is 0.49.
+            **Mirrored templates are counted together**, keyed on the multiset of their non-numeric
+            tokens, because `2020 Ed. … Act 1965 … 6` and `6 … Act 1965 … 2020 Ed.` are one running
+            head printed two ways and holding one body of evidence between them. That is what fixes
+            the two- and three-page case without touching the floor: the group has both votes.
+            Each member template must still count up on its own, so grouping merges evidence and
+            never manufactures it.
+            **And a line the package's own structural grammar recognises is never furniture by
+            shape.** That is the premise fix @ly7tho4y needs: the things other than page numbers that
+            count up with the pages are provision headings, and `_STRUCTURAL` is already the list of
+            them, extended per tradition by @zzqzaku4. It is applied to the **shape** rule only. The
+            exact-text rule is left alone on purpose, because identical text on 60% of pages cannot
+            be distinct provisions — article numbers differ — so repetition of the literal string is
+            proof of furniture in a way repetition of a template is not. This split is why
+            `REPUBLIK INDONESIA` is still strippable while `Pasal 13` is not, and it is the reason
+            the fix does not have to choose between the two corpora.
+            Rejected raising `SHAPE_THRESHOLD`, lowering it, or moving the floor — every one of them
+            is tuning a constant against one document, which is what `singapore-id` refused to do
+            locally and reported upward instead. Rejected a minimum content length on the template
+            ("a running head is a title plus a number, an article heading is a label plus a number"),
+            which is the same tuning with a longer name and would have deleted a terse running head.
+            Rejected lifting `singapore-id`'s `<year> Ed.` anchor, for @ly7tho4y's own reason.
+            Tradeoff: the rule now has three conditions where it had one, and a template that is
+            genuinely furniture but is also a structural opener in some tradition will survive — the
+            direction this package errs in deliberately, because a surviving header is visible and a
+            deleted provision is not.
+
+        Two edge windows, because only one of the three rules is evidence-free = decision:
+          id: kbdz5bmq
+          why: >
+            `EDGE_LINES = 3` is where a page's furniture is looked for, and `indonesia-id` measured
+            it too shallow on Perpres 95/2018 — a scan whose page header is the Garuda emblem OCR'd
+            into three to six lines of noise, so the real running head lands at line index 5 to 7.
+            The kit strips **0 of 112** `REPUBLIK INDONESIA` running heads and leaves **123 of 134**
+            standalone `-N-` page markers, because neither the text rule nor the shape rule ever sees
+            them. Each surviving marker is an unterminated line, so the rejoiner then welds it to the
+            heading beneath it, which is how `REPUBLIK INDONESIA -2- BABI` arises: a missed strip
+            becoming a corrupted heading one pass later.
+            Chose to split the window by how much evidence the rule behind it carries, rather than to
+            raise one constant. `EDGE_LINES` stays at 3 for `_PAGE_NUMBER`, whose whole case is
+            positional — a line that is nothing but a number is furniture *because* it sits at the
+            edge, and a bare `12` eight lines into a table is not. `FURNITURE_LINES = 8` is the
+            window for the two rules that prove furniture from repetition across pages: the exact
+            line repeated on 60% of pages, and the template recurring with a counting field. Those
+            two carry their own proof and do not need the position to supply it.
+            A page marker at depth is then reachable without loosening the positional rule: a
+            template matching `_PAGE_NUMBER` is admitted to the shape rule despite carrying no
+            letter, so `-\x00-` qualifies on the same evidence every other template needs — recurrence
+            across its span, and a field that counts up. Near the edge nothing changes at all.
+            The window also now means the same thing in both halves of the function. `_edge_lines`
+            counted non-blank lines while the strip loop counted raw ones, so a page with two leading
+            blank lines voted on three content lines and stripped only one of them — a latent
+            disagreement that made the window shallower still on exactly the scanned documents this
+            is about.
+            Rejected raising `EDGE_LINES` to 8 outright, which would let `_PAGE_NUMBER` delete a bare
+            numeric line deep in an OCR'd table on position alone. Rejected lifting `indonesia-id`'s
+            `_FURNITURE_PREFIX`, which strips a `-N-` marker and the all-caps run before it from
+            anywhere in a line: it is a better answer than this one for that corpus and it is not
+            generalisable, because its guard is "no lower-case letter before the marker" and it
+            rewrites lines rather than dropping them, which is a licence this package should not take
+            over text it is about to store. Recorded rather than adopted, and it stays in that repo.
+            Tradeoff: eight lines is still a number read off one scanner's emblem, and a page whose
+            furniture runs deeper than that is unserved.
 
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
