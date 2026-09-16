@@ -90,9 +90,39 @@ _CJK_RANGES = (
 _LETTER_SPACE = "[ 　]?"
 
 
+# Above this share of the alphabetic characters, text is CJK prose and the Latin cleaning path in
+# `pdf.py` will damage it. Japanese statutory text scores above 0.95; an English page quoting a
+# term or two scores in the low hundredths, so the band between is wide.
+MAX_CJK_RATIO_FOR_LATIN_PATH = 0.3
+# Below this many CJK characters there is nothing to protect, and a check would fire on an English
+# document that happens to quote 個人情報.
+MIN_CJK_CHARS = 20
+
+
 def is_cjk(ch: str) -> bool:
     """Is this a character from a script that writes no space between words?"""
     return any(low <= ch <= high for low, high in _CJK_RANGES)
+
+
+def cjk_ratio(text: str) -> float:
+    """CJK characters as a share of the alphabetic characters, 0.0 for text with no letters."""
+    letters = [ch for ch in text if ch.isalpha()]
+    if not letters:
+        return 0.0
+    return sum(1 for ch in letters if is_cjk(ch)) / len(letters)
+
+
+def looks_cjk(text: str) -> bool:
+    """Would a Latin-shaped cleaner damage this text?
+
+    Two conditions, because either alone misfires: a ratio alone trips on a four-word fragment, and
+    a count alone trips on an English page quoting a Japanese term twice. Lives here rather than in
+    `japanese.py` so that `pdf.py` can ask the question without importing the module it points at.
+    """
+    return (
+        sum(1 for ch in text if is_cjk(ch)) >= MIN_CJK_CHARS
+        and cjk_ratio(text) > MAX_CJK_RATIO_FOR_LATIN_PATH
+    )
 
 
 def normalise_text(text: str) -> str:

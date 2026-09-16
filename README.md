@@ -61,6 +61,7 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 ```
 lawcorpus/validity.py      the validity, authority and translation vocabularies, and the banners
 lawcorpus/manifest.py      one manifest schema: read, write, validate
+lawcorpus/migrate.py       bring a manifest onto the current schema, with the value stated
 lawcorpus/store.py         gzip corpus store — write-with-hash, read, verify
 lawcorpus/cite.py          the citation primitive; quotes never print without a validity banner
 lawcorpus/normalise.py     the one layout fold, applied to every document whatever its language
@@ -69,6 +70,7 @@ lawcorpus/formex.py        Formex XML -> citable text (articles, recitals, parag
 lawcorpus/caml.py          CAML XML -> citable text (California codified sections)
 lawcorpus/pdf.py           PDF -> citable text via poppler, with running-furniture removal
 lawcorpus/thai.py          Thai PDFs, which the general path loses characters from silently
+lawcorpus/japanese.py      Japanese PDFs, which the general path welds a space into silently
 lawcorpus/fetch/eurlex.py  EUR-Lex / Cellar fetcher, shared by eu-data-law and eidas-eudi
 lawcorpus/fetch/browser.py browser fetcher for challenge-fronted and JS-rendered sources
                            (optional: `pip install 'lawcorpus[browser]'`)
@@ -87,6 +89,20 @@ parses cleanly and also contains no law.
 
 `EurLexFetcher.fetch_formex()` handles both traps. `Accept-Language` is mandatory on every request;
 omitting it returns HTTP 400 with a plain-text explanation.
+
+## A third thing, if the corpus is not in a Latin script
+
+`pdf.extract` is English below the surface. Its line rejoiner reads a line as mid-sentence unless it
+ends in `.:;?!` and rejoins with **a space**, which neither Japanese nor Thai writes between words.
+It now refuses a predominantly CJK extraction and names `lawcorpus.japanese.extract_japanese`,
+which rejoins with no separator; `lawcorpus.thai.extract_thai` gates the two ways `pdftotext`
+destroys Thai. Neither is a repair of the general path — both refuse more than they fix, because
+text stored after being mangled is the failure that looks like success.
+
+On the search side, a CJK query built with `normalise_query` tolerates the space that Japanese
+heading typography puts *inside* a short word: e-Gov writes 「附　則」, so a bare `rg 附則` finds none
+of the supplementary-provision headings in a corpus while finding every cross-reference to them.
+`lawcite --grep` already goes through it; a hand-written `rg` does not.
 
 ## A second thing, if you reach for the browser fetcher
 

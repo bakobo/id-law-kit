@@ -27,7 +27,7 @@ from collections import Counter
 from pathlib import Path
 
 from .errors import LawcorpusError
-from .normalise import normalise_text
+from .normalise import looks_cjk, normalise_text
 
 # How many lines at each edge of a page can be furniture.
 EDGE_LINES = 3
@@ -113,6 +113,17 @@ def clean_pages(pages: list) -> str:
             "Every page extracted to whitespace, which means this PDF has no text layer. It is a "
             "scanned image and needs OCR (tesseract) before it can be quoted. Storing it would put "
             "a blank entry in the corpus that reads like a successful extraction."
+        )
+    if looks_cjk("\n".join(pages)):
+        raise PdfError(
+            "This extraction is predominantly CJK, and the cleaning below is English. "
+            "`_UNTERMINATED` reads every line ending in 。 as mid-sentence and rejoins it with a "
+            "space, which Japanese does not write between words — 「③発行者の電子署名から構成される」 "
+            "comes out as 「③発行者の 電子署名から構成される」 and can no longer be found at all. That "
+            "is a silent false negative manufactured by the cleaner, so this refuses rather than "
+            "stores. Use lawcorpus.japanese.extract_japanese, which rejoins with no separator and "
+            "reads Japanese sentence terminators. (Korean is not affected and does not arrive "
+            "here: it writes spaces between words.)"
         )
 
     text = "\n".join(strip_repeated_furniture(pages))
