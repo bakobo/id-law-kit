@@ -1287,6 +1287,54 @@ Shared method and tooling for the identity-law corpus programme = goal:
             prefix `e.env.browser.` rather than one code — which is what prefixes are for, and is
             why the subject sits above the disposition.
 
+    A dotted item_id is a sibling instrument, so the store resolves it exactly and grep verifies = decision:
+      id: ovqrxx4g
+      why: >
+        `CorpusStore.resolve` globbed `{item_id}.*.gz` and took `sorted()[0]`. A glob's `*` matches
+        a dot, so `URCP-26` matched `URCP-26.1.txt.gz` as readily as its own file, and `1` sorts
+        before `t`: **the wrong instrument won**. `utah-id-law`'s court-rules layer, now on the kit
+        schema, measures 13 of 662 items resolving to a sibling — `URCP-26`→`URCP-26.1`,
+        `URCrP-9`→`URCrP-9.5`, `UCJA-3-201`→`UCJA-3-201.02`.
+        The dot is not an extension and this is not a naming accident. `URCP-26.1` is a different
+        rule from `URCP-26`, and every drafting tradition in this programme inserts provisions the
+        same way — Japan's 第六条の二, Thailand's ๓๒/๒, Indonesia's `Pasal 13A`. @kolycpun already
+        decided that this package reads a sub-number as a provision in its own right rather than
+        collapsing it onto its base, precisely so an insertion is not indistinguishable from a
+        duplicate. A filename rule that collapses them contradicts, one layer down, a decision the
+        package had already made.
+        **The severity is in the asymmetry, and the asymmetry is the real defect.** `Corpus.text`
+        checks the stored bytes against the manifest's `sha256`, so a wrong file fails closed and
+        says so. `Corpus.grep` never checked it at all, so it read the sibling's text and reported
+        the hits under the queried citation: `lawcite --grep 'domestic relations actions'` returned
+        matches attributed to `URCP-26`, whose own text does not contain the phrase, while
+        `text('URCP-26')` refused in the same corpus a moment later. A quote-or-drop tool
+        attributing a quotation to an instrument that does not carry it is the one failure this
+        package exists to prevent, and it was reached **through** the tool rather than around it.
+        One path failing closed beside a neighbour failing silently is worse than either alone,
+        because the loud path is the reason a reader trusts the quiet one.
+        Chose to resolve by **walking the directory** and requiring what follows the item_id to be
+        exactly one dotted extension — `\.[^.]+\.gz` — so a dot can never be swallowed. Iterating
+        rather than globbing also stops an item_id containing `*`, `?` or `[` from being read as a
+        pattern, which was a second latent hole in the same line; `_safe_id` guards separators and
+        leading dots and has nothing to say about glob metacharacters. A caller naming the suffix
+        already took an exact path and is unchanged.
+        Chose to make **`grep` verify**, by routing it through `Corpus.text`. The cost is one sha256
+        pass over bytes grep has already read and decompressed: measured over utah-id-law's 661
+        court rules, 2.2 MB, the digest adds 11 ms to 107 ms — **11%**, against a regex scan of the
+        same bytes at 42 ms. So the asymmetry was never a considered trade of safety for speed; it
+        was an omission, and saying that plainly is better than documenting a cost that does not
+        exist.
+        Rejected having `grep` skip an item whose digest fails and carry on. A skipped item is a
+        silent false negative in a search — the failure @7xsnhink and @zpycgven both refuse — and a
+        search that quietly omits the instrument you were looking for is worse than one that stops
+        and names it. Rejected renaming stored files to keep a dot out of them, which edits the
+        publisher's own numbering to suit a glob. Rejected verifying inside `CorpusStore.read`,
+        which does not know the manifest and should not: the store holds bytes, the manifest holds
+        the claim about them, and `Corpus` is where the two meet.
+        Tradeoff: one stale or hand-edited item now makes `--grep` refuse the whole corpus until it
+        is refetched. That is the posture `quote` has always had, and the remedy is named in the
+        message.
+
     A comparative finding is one file per spine question, and it carries the artefact list = decision:
       id: qkybp2lr
       why: >
