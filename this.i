@@ -255,3 +255,114 @@ Shared method and tooling for the identity-law corpus programme = goal:
             stripped as furniture instead. Tradeoff: a Thai corpus built from PDFs still carries
             reordered marks in body text, and `search_key` does not fold them, so a phrase search
             across one can still under-count — recorded as a tick rather than pretended away.
+
+    A browser fetcher, scoped to the two obstacles a browser can actually remove = decision:
+      id: lkm7beuo
+      why: >
+        Phase 0 (asia-id-strategy.md §8.5) established that every *primary* acquisition route in the
+        Asian set needs no browser: Japan's e-Gov API, Singapore's `?ViewType=Pdf`, Indonesia's
+        `jdih.setneg.go.id` JSON API, Thailand's `apig.law.go.th`. A browser earns its place against
+        exactly two secondary obstacles that nonetheless hold load-bearing answers. First, Cloudflare
+        managed challenges on HTML routes — `ratchakitcha.soc.go.th` returns `cf-mitigated: challenge`
+        on HTML while serving `/documents/<id>.pdf` straight through, so the authoritative publication
+        is retrievable and its search UI is not. Second, pages with no API behind them:
+        `bora.dopa.go.th` answers 200 and renders client-side, and Phase 0 could read four links out
+        of it, which is why ThaID's wire format is still the Thailand spike's largest gap. Rejected
+        the broader framing of "a browser fetcher for hard sites", because it is false advertising for
+        the two Indonesian cases that matter most: `peraturan.go.id` black-holes the TCP SYN and every
+        `kemendagri.go.id` host is blocked outright, and no browser reaches a socket that never opens.
+        The module docstring says so in those words, so nobody spends a day pointing Chromium at a
+        dead socket. Tradeoff accepted: a second acquisition mechanism to maintain, whose failure
+        modes (browser versions, cached binaries, a page that renders differently headless) are less
+        legible than curl's.
+
+    Playwright is an optional extra, never a core dependency = decision:
+      id: 2sc5rmg4
+      why: >
+        `lawcorpus` is imported by five corpus repos, most of which will never launch a browser, and
+        a browser is ~170 MB of cached binaries plus a driver process. So `playwright` sits behind a
+        named extra (`pip install 'lawcorpus[browser]'`), the import happens inside the call rather
+        than at module scope, and its absence raises a code of its own naming the install command.
+        Rejected a soft `try: import playwright / except: playwright = None` at module top, which
+        turns a missing dependency into an AttributeError at the first call site. Rejected vendoring
+        or shelling out to a system browser, which trades one dependency for a less inspectable one.
+        Tradeoff: an error path that only fires on machines without the extra, which is exactly the
+        path most likely to rot — so it is unit-tested by injecting the importer rather than by
+        trusting the environment.
+
+    A challenge page is refused, never returned, and refusal is a first-class outcome = decision:
+      id: 5bo2uarc
+      why: >
+        Phase 0's worst finding was an extraction that looked fine and had silently lost four
+        articles (§8.4). An interstitial stored as law is that same failure wearing a different hat,
+        and it is worse, because "Just a moment..." is 29 KB of plausible HTML that a completeness
+        check over an unknown structure would not catch. So detection runs on every fetch, in both
+        modes, and refuses on: a `cf-mitigated` header, a Cloudflare interstitial or deny body, any
+        status that is not 200, and an empty 200. Verified against live hosts 2026-09-16 — the
+        Gazette answers `cf-mitigated: challenge` with title "Just a moment..." even to a real
+        headless Chromium, and `peraturan.bpk.go.id` answers a static "Access Denied … Country: US",
+        which is a different obstacle needing a different remedy (an Indonesian egress, not a
+        browser) and therefore carries a different code. Chose to raise rather than return a
+        `refused` result object: a returned result is a thing a caller can ignore by reading only its
+        `body`, and this repo's whole posture is that the dangerous failure is the one that looks
+        like success. The refusal carries its provenance, so a caller can still record what happened.
+        Tradeoff: a caller who genuinely wants the interstitial bytes (to diagnose a WAF) must read
+        them off the exception rather than from a return value.
+
+    We do not defeat access controls; the honest outcome is "retrieve it by hand" = decision:
+      id: v2xlormp
+      why: >
+        The fetcher uses a real browser with its ordinary user agent and ordinary behaviour, and
+        stops there. No CAPTCHA or Turnstile solving, no stealth patches to hide the automation
+        flags, no user-agent or proxy rotation, no retry loop that waits out a challenge. Where a
+        site has said no, the supported outcome is a refusal naming the host and telling the caller
+        to retrieve the document by hand — which is what the Thailand spike itself did, recording the
+        challenge as a finding rather than routing around it. Rate limiting is on by default (one
+        navigation per interval, configurable) rather than opt-in, because a polite default that
+        someone must switch off fails safe and an impolite one does not. The reasoning is not only
+        ethical: a corpus assembled by misrepresenting who we are is evidence we could not cite in
+        the regulatory conversations this programme exists to have. Tradeoff: some documents stay
+        unreachable that a less scrupulous tool would fetch, and the Gazette's search UI is one of
+        them.
+
+    Provenance for a rendered page attests to our rendering, not to the server's bytes = decision:
+      id: rl2fgk3p
+      why: >
+        A browser fetch that cannot report its status code is not manifestable, so every fetch
+        records the final URL after redirects, the HTTP status, the content type, the byte count and
+        the SHA-256, and hands back the same fields a manifest row needs. But the two modes differ in
+        what the digest covers, and the difference is not cosmetic: in document mode it is the bytes
+        the server sent, and in rendered mode it is the serialised DOM *after* client-side scripts
+        ran, which no refetch will reproduce byte-for-byte. Chose to keep both under one provenance
+        type with the mode recorded in it, over inventing a second manifest shape. This is the same
+        tradeoff already accepted at @f5mvj6 for normalised text, and it needs the same warning
+        attached: a rendered item's sha256 attests to what we saw, so anything load-bearing should be
+        quoted from a document-mode fetch where one exists.
+
+    Access windows belong to the kit, not to one jurisdiction's harvester = decision:
+      id: asbhej3z
+      why: >
+        Singapore's SSO clause (13)(d) permits automated extraction only between 3 a.m. and 7 a.m.
+        Singapore Time (§8.2), which is the first instance of a general shape: a source that grants
+        permission conditionally on when you ask. Chose a declarative `AccessWindow` on the fetcher —
+        local hours plus an IANA zone, refusing outside the window with a message naming the source's
+        own term — over a cron entry in the Singapore repo. A cron entry encodes the rule where
+        nobody reading the fetcher can see it, and it enforces nothing if a human runs the harvester
+        by hand at noon. The window is checked before the browser launches, so an out-of-window run
+        costs nothing and cannot half-happen. Tradeoff: the kit now carries a timezone dependency and
+        a notion of "now" that must be injectable for tests; and a window is a blunt instrument for
+        what is really a revocable contractual permission, so the licence reasoning still has to live
+        in the corpus repo's this.i.
+
+    Error codes stay in this package's `BK_*` idiom rather than the dotted standard = decision:
+      id: 4jeup7vd
+      why: >
+        `dev/standards/error-codes.md` specifies `<sorter>.<descriptor>.<disposition>` — the browser
+        refusal would be something like `e.party.refused.f` and the missing extra
+        `e.feature.unsupported.f`. Every existing code in this package is flat `BK_*`
+        (`BK_LAWCORPUS_ERROR`, `BK_EURLEX_FETCH`, `BK_MANIFEST_INVALID`). Chose consistency with the
+        package over conformance in one new module: a caller catching `LawcorpusError` and branching
+        on `.code` should not meet two grammars, and prefix matching — the whole point of the dotted
+        form — does not work on a set of codes that is half converted. Recorded rather than silently
+        copied, because the standard is the standard and this is a deviation with an expiry date: the
+        migration is one change across the package, tick ~6fpq.
