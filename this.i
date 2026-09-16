@@ -883,3 +883,42 @@ Shared method and tooling for the identity-law corpus programme = goal:
             public class in `fetch/browser.py`, and a caller that wants both halves now matches the
             prefix `e.env.browser.` rather than one code — which is what prefixes are for, and is
             why the subject sits above the disposition.
+
+    A comparative finding is one file per spine question, and it carries the artefact list = decision:
+      id: qkybp2lr
+      why: >
+        `findings/` had been empty since the repo was created, and the first cross-regime work spans
+        nine corpora at once. Chose one file per spine question — Q4, then Q1, then a triage of the
+        rest — over one long "comparative findings" document, because the questions have different
+        answer shapes and different evidence: Q4 turns on a phrase family that is present or absent
+        per regime, Q1 turns on scope provisions that have to be quoted at length, and Q3/Q5/Q6/Q8
+        are mostly a statement about what nine corpora can and cannot support. A single document
+        would have forced one voice onto three genuinely different jobs and made the per-question
+        answer unfindable, which is the thing the shared spine exists to prevent. Rejected the
+        sibling repos' `NN-slug.md` ordering-by-build-sequence too: a cross-regime file is answering
+        a numbered question, so the number should be the question's, and `q4-`/`q1-` reads correctly
+        out of order. Every negative in these files names the artefacts it swept by corpus and item,
+        states its case folding, and names `lawcite --grep` as the query path — the rule
+        `thailand-id` adopted at `this.i` @j4viqege after `credential` was published as 0 over "the
+        five ThaID artefacts", a set nobody could reconstruct, when `client_credentials` in an OAuth
+        grant-types list made it 1. Tradeoff accepted: the files repeat their artefact lists, which
+        is verbose, and three files must be kept consistent with each other by hand.
+      children:
+        The taxonomy's universality claim is refuted in a finding, not patched out of the doc = decision:
+          id: wzkt4y2j
+          why: >
+            `taxonomy.md` §1.3 and `questions.md` Q4 both assert that requester-verification "is the
+            one duty family present in every regime in the programme". That was true of the five
+            regimes it was written over. It is false of nine: the Singapore, Thai, Indonesian and
+            Indian corpora each carry a statutory right of access with no duty on the recipient to
+            check who is asking, and no ceiling either. Chose to record the refutation in
+            `findings/q4-requester-verification-is-not-universal.md`, with the quotes and the
+            interrogated zeros, and to leave the two binding docs alone pending their owner's
+            decision. Rejected editing `taxonomy.md` and `questions.md` in the same change: a
+            finding is evidence and a binding doc is a rule, and a rule that changes silently
+            underneath the findings that cite it destroys the audit trail this programme is built
+            on — the reader of a future finding needs to be able to see that the claim was made,
+            tested against four new corpora, and failed. Rejected softening it to "present in most
+            regimes", which would preserve a sentence nobody could act on. Tradeoff: the docs stay
+            wrong until someone fixes them, so a tick carries the correction and the finding names
+            the two files and their claims outright.
