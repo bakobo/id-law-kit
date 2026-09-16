@@ -126,6 +126,27 @@ One tab-separated schema for every corpus, so `cite.py` and `sweep.py` work ever
 A refetch that diffs cleanly against `sha256` proves nothing changed. A refetch that doesn't tells
 you exactly what to re-read.
 
+### Migrating a manifest written before `translation_status`
+
+`translation_status` and `translation_of` were added as required fields, so a manifest written
+before them no longer reads — `Manifest.read` refuses it by name and prints the command below. The
+kit does **not** infer the missing value: reading "no translation columns" as `authoritative` is the
+default the field exists to refuse, and it would be silently wrong for the first corpus that
+predates the column and holds a translation. Somebody who knows the corpus states the value once,
+and commits it:
+
+```sh
+python -m lawcorpus.migrate corpus/MANIFEST.tsv --translation-status authoritative
+python -m lawcorpus.migrate corpus/MANIFEST.tsv --translation-status authoritative --dry-run
+```
+
+`--translation-status` is required and has no default. Only `authoritative` may be assigned in bulk;
+a rendering that is not authentic text owes a `translation_of` that an old manifest does not record,
+so a corpus of translations is re-harvested rather than rewritten. Every row is rebuilt through
+`ManifestItem`, so the migration revalidates the whole file and writes nothing if any row fails.
+`--retier old=new` rewrites an `authority_tier` in the same pass — `--retier standard=commentary`
+is the one this programme needed. See `this.i` @oa2bvav5 and @3zljqayt.
+
 ## What this repo does not do
 
 It does not decide whether a corpus is complete, and it cannot tell you that an absence is

@@ -48,6 +48,14 @@ COLUMNS = (
     "sha256",
 )
 
+# The schema as it stood before `translation_status` and `translation_of` were added. It is kept
+# so that a manifest written against it is recognised and named once, rather than complained about
+# row by row as thirteen columns that are somehow missing two — see `migrate.py` and this.i
+# @oa2bvav5. It is a closed historical fact, not a supported schema: nothing writes it.
+LEGACY_COLUMNS = tuple(c for c in COLUMNS if c not in ("translation_status", "translation_of"))
+
+MIGRATE_COMMAND = "python -m lawcorpus.migrate {path} --translation-status <token>"
+
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _LANG = re.compile(r"^[a-z]{3}$")
@@ -57,6 +65,19 @@ class ManifestError(LawcorpusError):
     """A manifest row, file, or lookup that does not hold up."""
 
     code = "BK_MANIFEST_INVALID"
+
+
+class StaleSchemaError(ManifestError):
+    """A manifest written against a superseded column set, which this package will not infer past.
+
+    `state.stale` rather than `input.format`: the file is well-formed and was correct when it was
+    written. What is wrong is its *state* relative to a schema that has since gained a required
+    field, and the remedy is a migration rather than a correction.
+
+    A subclass of `ManifestError` so that the corpus repos, which catch that, keep catching this.
+    """
+
+    code = "e.state.stale.manifest-schema.f"
 
 
 def _required_text(value, name: str) -> str:
@@ -330,6 +351,16 @@ class Manifest:
         items = []
         with path.open(encoding="utf-8", newline="") as fh:
             reader = csv.DictReader(fh, delimiter="\t")
+            if reader.fieldnames == list(LEGACY_COLUMNS):
+                raise StaleSchemaError(
+                    f"{path} was written against the manifest schema that predates "
+                    f"translation_status and translation_of, so every row in it is missing two "
+                    f"required fields. Neither can be inferred — a corpus that predates the "
+                    f"column may hold a translation, and reading the absence of a value as "
+                    f"'authoritative' is the guess the field exists to refuse. State the value "
+                    f"once, for this corpus, and commit the result: "
+                    f"{MIGRATE_COMMAND.format(path=path)}."
+                )
             for offset, row in enumerate(reader, start=2):
                 try:
                     items.append(ManifestItem.from_row(row))

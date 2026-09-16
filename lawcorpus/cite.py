@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import LawcorpusError
-from .manifest import Manifest, ManifestError
+from .manifest import Manifest, ManifestError, StaleSchemaError
 from .normalise import normalise_query
 from .store import CorpusStore, StoreError
 
@@ -57,6 +57,11 @@ class Corpus:
         self.root = Path(root)
         try:
             self.manifest = Manifest.read(self.root / manifest_name)
+        except StaleSchemaError:
+            # Passed through with its identity intact. A manifest on a superseded schema has its
+            # own remedy — one migration command, named in the message — and a caller that wants
+            # to offer it must be able to tell that case from a corpus we simply could not read.
+            raise
         except ManifestError as e:
             raise CorpusError(e.message) from e
         self.store = CorpusStore(self.root)
