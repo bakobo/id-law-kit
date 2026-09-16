@@ -142,3 +142,41 @@ Shared method and tooling for the identity-law corpus programme = goal:
         EU drafting uses the quotes to mark defined terms. Tradeoff: the stored text is not a
         byte-exact copy of what Cellar served, so the manifest's sha256 attests to our extraction
         rather than to the EU's file, and anyone needing the original bytes must refetch.
+      children:
+        Normalisation is unconditional, never switched on a language tag = decision:
+          id: amdvdsah
+          why: >
+            The obvious design — apply a CJK fold to CJK documents, a Thai fold to Thai ones — was
+            falsified by Phase 0 before it was written. Japanese uses U+3001 and **zero** U+FF0C;
+            Korean has no U+3000 and no full-width punctuation at all, but 4,966 instances of
+            U+318D `ㆍ`; Chinese uses U+FF0C 69 times and U+3001 79 times; Singapore's English
+            carries U+2011, the EU trap. Decisively, the **English-language** CTID specification
+            contains stray full-width parentheses — so a document's language tag does not predict
+            its characters, and a rule keyed on the tag would have missed the one case that
+            motivated it. Chose one set applied to every document, over a per-language switch and
+            over the wider alternative of NFKC. NFKC is rejected outright: it decomposes Thai
+            U+0E33 into U+0E4D+U+0E32, turning 18 hits for `สำนักงาน` into 0 — the standard remedy
+            is itself a silent-false-negative generator. The set is width and invisibility only:
+            full-width ASCII variants fold to ASCII because a full-width parenthesis means exactly
+            what an ASCII one means, while U+3001, U+3002 and U+318D stay, because they are
+            distinct characters carrying meaning rather than width. Tradeoff: stored CJK text is
+            no longer typographically what the publisher served, extending @f5mvj6's departure
+            from byte-exactness to five more jurisdictions.
+          children:
+            Query-side normalisation carries what text-side normalisation must not = decision:
+              id: liv2lsxs
+              why: >
+                Two Phase 0 traps cannot be fixed by folding the stored text. Full-width
+                enumerators like `（一）` are **structural** — they address provisions, so
+                stripping them breaks citation — and U+318D is a visible list separator that
+                @f5mvj6's own rule says must stay. Chose a second fold applied to the *search
+                pattern* instead: a separator in a query expands to a character class matching all
+                five spellings (U+318D, U+00B7, U+2022, U+30FB, U+FF65), and a non-ASCII character
+                that the text-side fold rewrites is rewritten the same way in the query but
+                regex-escaped, so a user who types a full-width parenthesis gets a literal rather
+                than a capturing group. Rejected normalising ASCII characters in a query, which
+                would turn `[0-9]` into a broken class — the fold only ever rewrites non-ASCII
+                input, and that asymmetry is deliberate. Tradeoff: a separator inside a
+                user-written character class produces a nested class that silently matches the
+                wrong thing; it is documented rather than parsed for, because parsing a regex to
+                normalise it costs more than the trap does.
