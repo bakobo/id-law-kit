@@ -96,6 +96,29 @@ operative source, say so in the finding.
 implementing act. Filing it below the legal text means a finding that cites the ARF against a
 Commission regulation has its ordering visibly backwards.
 
+**There is no `standard` tier, and there will not be one.** The ladder has six rungs and ends at
+`commentary`; an open technical specification belongs on the last one. The case against that is
+worth stating, because it is not silly: OpenID4VP adopted normatively by an EUDI implementing act is
+not the same kind of document as an explanatory memorandum, and `commentary` files them together.
+
+The answer is that **incorporation by reference is a property of the citing instrument, not of the
+document.** The same OpenID4VP is operative in the EU and, in `japan-id/corpus-specs`, a document
+with no legal force at all. A tier whose membership changes according to who is citing it cannot
+order a conflict, which is the one job this field has. And where a specification does bind, what
+binds is the implementing act's incorporation of it — and that act is already `delegated`, one rung
+from the top. The specification's own text remains evidence of a rule nobody enacted.
+
+So a specification is `commentary` wherever it is filed, and a finding that quotes an incorporated
+specification beside a policy slide says in prose which one an implementing act made operative. That
+sentence is the analysis. A tier that tried to encode it would be wrong the moment the same document
+was cited from another jurisdiction.
+
+`eidas-eudi/corpus-specs/MANIFEST.tsv` files OpenID4VCI, OpenID4VP and HAIP at `standard`, which
+`AuthorityTier` has never carried, and its sibling `corpus-arf` files 69 specifications at
+`commentary` in the same repo. Correct it with the migration:
+`python -m lawcorpus.migrate corpus-specs/MANIFEST.tsv --translation-status authoritative --retier
+standard=commentary`. See `this.i` @3zljqayt.
+
 ---
 
 ## 3. The validity vocabulary
@@ -176,6 +199,16 @@ Korean current text of 2026-09-11, so the staleness is dated rather than hypothe
 `machine` is unquotable because the failure mode differs in kind: an official translation is wrong at
 the margin and its banner says so, while machine output can invert a negation with no signal at all.
 It is kept in the corpus as a reading aid for deciding *which* provision to have rendered properly.
+
+### A corpus written before this field migrates itself
+
+The field arrived required, which stopped `Manifest.read` on every manifest that predates it. The
+kit does not infer the missing value — reading "no translation columns" as `authoritative` is the
+default this field exists to refuse, right for the corpora that have no translation problem and
+silently wrong for the first one that does. Each repo states the value once and commits it:
+`python -m lawcorpus.migrate corpus/MANIFEST.tsv --translation-status authoritative`. The flag has
+no default, and only `authoritative` can be assigned in bulk, because anything else owes a
+`translation_of` an old manifest does not record. See `this.i` @oa2bvav5.
 
 ### A translation is a separate item, linked to its original
 
