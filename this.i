@@ -895,6 +895,59 @@ Shared method and tooling for the identity-law corpus programme = goal:
         Tradeoff: `extract` now runs poppler twice in layout mode, `verify_order=False` is the escape
         hatch, and a document watermarked with something poppler renders as words rather than
         fragments is invisible to this. It detects a stamp, not every way a page can be spoiled.
+      children:
+        Measured against the PDFs, the glyph-line share does not separate, so it stops refusing = decision:
+          id: uf4epdvm
+          why: >
+            @k76mmqlc was built from `aadhaar`'s prose description and shipped without ever being run
+            against a file. ~3azt said so. Run now over 11 India Code PDFs and 17 controls from two
+            corpora, and the result is that the **hazard is real and the detector is not**.
+            The hazard reproduces exactly as described. In the 2021 Aadhaar (Authentication and
+            Offline Verification) Regulations, `publication in the Official Gazette` occurs **once**
+            in poppler's raw-mode rendering and **zero** times in its layout-mode rendering of the
+            same 29 pages. `watermark_share` fires on that document at **0.966** against a bar of
+            0.50, which is the one thing the guard was asked to do.
+            It does not separate. `PUTTASWAMY-2018-SCR` — the Supreme Court Reports text of the 2018
+            judgment, sound, stored, and one of the documents `aadhaar` exists to read — scores
+            **0.998**, higher than every watermarked document measured, because a law report prints
+            paragraph markers `A` to `H` down the margin of every page and poppler puts each on a
+            line of its own. At the other end, two watermarked Gazette PDFs score exactly **0.500**
+            and the guard stays silent on them. Control maximum 0.998 against positive minimum 0.500:
+            there is no threshold on this statistic that admits the sound documents and refuses the
+            spoiled ones. @bxgnjdos rejected a mojibake signal for a margin of 0.195 against 0.200.
+            This margin is negative, and the same standard decides it.
+            The cost was not hypothetical either. `aadhaar/tools/harvest.py:507` extracts the
+            judgments layer on `extract`'s default layout path, so the next harvest after @k76mmqlc
+            shipped would have refused the Supreme Court Reports — a guard whose first firing is
+            wrong, which is the shape @k76mmqlc itself named and then built.
+            Three further statistics were tried and each is refuted by the same corpora, recorded so
+            they are not tried again. **The raw-to-layout drop in glyph-line share is 0.000 on every
+            India Code document**, which refutes @k76mmqlc's own claim that layout mode absorbs the
+            fragments into the text they displaced: they are equally visible in both renderings, and
+            the second poppler render buys no evidence. **One-directional bigram loss** — the
+            adjacency test in the asymmetric form @k76mmqlc did not try, counting only the in-line
+            word pairs raw mode has and layout mode lacks — puts the 2021 Regulations at 0.0028
+            against 0.0035 to 0.0121 for sound controls, so the permutation arithmetic holds in this
+            form too and the harm is 31 pairs in 10,960. **Glyph lines that
+            `strip_repeated_furniture` cannot remove** drops the Constitution from 0.998 to 0.444,
+            losing a true positive, and leaves the law report untouched at 0.998. **Isolated glyph
+            lines**, a stray letter with prose on both sides, which is the harm's own mechanism,
+            brings the positives down to 0.305 while the law report sits at 0.542.
+            Chose to stop refusing. `extract`'s `verify_order` now defaults to **False**, and the
+            second poppler render goes with it; `watermark_share` and `check_reading_order` stay
+            public, carrying these numbers in their docstrings, for a corpus that knows its publisher
+            stamps every page and wants to assert it deliberately. A measurement a caller invokes is
+            honest about being one publisher's tell; a default refusal claims to be general.
+            Rejected raising the threshold, which is arithmetically impossible — 0.998 is above 0.966.
+            Rejected a carve-out for a run of consecutive alphabet letters down a page, which is what
+            a margin column is: it is fitted to the single control document that breaks the guard,
+            which is the vocabulary-fitting @k76mmqlc already rejected wearing a different hat.
+            Rejected deleting the code, on @k76mmqlc's own precedent for the adjacency test — a
+            rejected idea recorded is cheaper than one re-derived.
+            Tradeoff, and it is the real one: the reordering is real, it is measured, and it is now
+            undetected on the default path. A detector needs **geometry** — `pdftotext -bbox` gives
+            the coordinates that tell a diagonal stamp from a margin column — and that is the
+            distinction no text-only statistic tried here could make.
 
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
