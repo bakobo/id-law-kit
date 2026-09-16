@@ -17,25 +17,25 @@ Every count and every zero below is over these items and no others. The rule is 
 
 | Corpus | Manifest | Items | `authority_tier` | `validity` |
 |---|---|---:|---|---|
-| [`../utah-id-law/corpus/utah-code`](../../utah-id-law/corpus/utah-code) | `MANIFEST-utah-code.tsv` | 96 | *field does not exist* | *field does not exist* |
-| [`../utah-id-law/corpus/admin-rules`](../../utah-id-law/corpus/admin-rules) | `MANIFEST-admin-rules.tsv` | 2,294 | *field does not exist* | *field does not exist* |
-| [`../utah-id-law/corpus/court-rules`](../../utah-id-law/corpus/court-rules) | `MANIFEST-court-rules.tsv` | 661 | *field does not exist* | *field does not exist* |
-| [`../eu-data-law/corpus`](../../eu-data-law/corpus) | `MANIFEST.tsv` | 18 | 6 legislative, 5 delegated, 7 judicial | 18 in-force |
-| [`../eidas-eudi/corpus`](../../eidas-eudi/corpus) | `MANIFEST.tsv` | 33 | 3 legislative, 30 delegated | 27 in-force, 6 amended |
-| [`../eidas-eudi/corpus-arf`](../../eidas-eudi/corpus-arf) | `MANIFEST.tsv` | 69 | 69 commentary | 69 in-force |
-| [`../eidas-eudi/corpus-specs`](../../eidas-eudi/corpus-specs) | `MANIFEST.tsv` | 3 | 3 commentary | 3 in-force |
-| [`../ccpa/corpus`](../../ccpa/corpus) | `MANIFEST.tsv` | 46 | 46 legislative | 46 in-force |
-| [`../ccpa/corpus-regs`](../../ccpa/corpus-regs) | `MANIFEST.tsv` | 91 | 91 delegated | 61 in-force, 30 amended |
-| [`../japan-id/corpus`](../../japan-id/corpus) | `MANIFEST.tsv` | 40 | 6 legislative, 34 delegated | 38 in-force, 2 repealed |
-| [`../japan-id/corpus-specs`](../../japan-id/corpus-specs) | `MANIFEST.tsv` | 2 | 2 commentary | 2 in-force |
-| [`../singapore-id/corpus`](../../singapore-id/corpus) | `MANIFEST.tsv` | 20 | 4 legislative, 16 delegated | 20 in-force |
-| [`../singapore-id/corpus-specs`](../../singapore-id/corpus-specs) | `MANIFEST.tsv` | 5 | 5 commentary | 5 in-force |
-| [`../thailand-id/corpus`](../../thailand-id/corpus) | `MANIFEST.tsv` | 35 | 35 legislative | 17 in-force, 18 amended |
-| [`../thailand-id/corpus-specs`](../../thailand-id/corpus-specs) | `MANIFEST.tsv` | 14 | 9 commentary, 5 delegated | 11 in-force, 3 repealed |
-| [`../indonesia-id/corpus`](../../indonesia-id/corpus) | `MANIFEST.tsv` | 11 | 6 legislative, 5 delegated | 6 in-force, 5 amended |
-| [`../aadhaar/corpus-acts`](../../aadhaar/corpus-acts) | `MANIFEST.tsv` | 121 | 121 legislative | 92 in-force, 26 not-yet-applicable, 2 read-down, 1 repealed |
-| [`../aadhaar/corpus-delegated`](../../aadhaar/corpus-delegated) | `MANIFEST.tsv` | 10 | 9 delegated, 1 constitutional | 9 in-force, 1 not-yet-applicable |
-| [`../aadhaar/corpus-judgments`](../../aadhaar/corpus-judgments) | `MANIFEST.tsv` | 3 | 3 judicial | 3 in-force |
+| [`../../utah-id-law/corpus/utah-code`](../../utah-id-law/corpus/utah-code) | `MANIFEST-utah-code.tsv` | 96 | *field does not exist* | *field does not exist* |
+| [`../../utah-id-law/corpus/admin-rules`](../../utah-id-law/corpus/admin-rules) | `MANIFEST-admin-rules.tsv` | 2,294 | *field does not exist* | *field does not exist* |
+| [`../../utah-id-law/corpus/court-rules`](../../utah-id-law/corpus/court-rules) | `MANIFEST-court-rules.tsv` | 661 | *field does not exist* | *field does not exist* |
+| [`../../eu-data-law/corpus`](../../eu-data-law/corpus) | `MANIFEST.tsv` | 18 | 6 legislative, 5 delegated, 7 judicial | 18 in-force |
+| [`../../eidas-eudi/corpus`](../../eidas-eudi/corpus) | `MANIFEST.tsv` | 33 | 3 legislative, 30 delegated | 27 in-force, 6 amended |
+| [`../../eidas-eudi/corpus-arf`](../../eidas-eudi/corpus-arf) | `MANIFEST.tsv` | 69 | 69 commentary | 69 in-force |
+| [`../../eidas-eudi/corpus-specs`](../../eidas-eudi/corpus-specs) | `MANIFEST.tsv` | 3 | 3 commentary | 3 in-force |
+| [`../../ccpa/corpus`](../../ccpa/corpus) | `MANIFEST.tsv` | 46 | 46 legislative | 46 in-force |
+| [`../../ccpa/corpus-regs`](../../ccpa/corpus-regs) | `MANIFEST.tsv` | 91 | 91 delegated | 61 in-force, 30 amended |
+| [`../../japan-id/corpus`](../../japan-id/corpus) | `MANIFEST.tsv` | 40 | 6 legislative, 34 delegated | 38 in-force, 2 repealed |
+| [`../../japan-id/corpus-specs`](../../japan-id/corpus-specs) | `MANIFEST.tsv` | 2 | 2 commentary | 2 in-force |
+| [`../../singapore-id/corpus`](../../singapore-id/corpus) | `MANIFEST.tsv` | 20 | 4 legislative, 16 delegated | 20 in-force |
+| [`../../singapore-id/corpus-specs`](../../singapore-id/corpus-specs) | `MANIFEST.tsv` | 5 | 5 commentary | 5 in-force |
+| [`../../thailand-id/corpus`](../../thailand-id/corpus) | `MANIFEST.tsv` | 35 | 35 legislative | 17 in-force, 18 amended |
+| [`../../thailand-id/corpus-specs`](../../thailand-id/corpus-specs) | `MANIFEST.tsv` | 14 | 9 commentary, 5 delegated | 11 in-force, 3 repealed |
+| [`../../indonesia-id/corpus`](../../indonesia-id/corpus) | `MANIFEST.tsv` | 11 | 6 legislative, 5 delegated | 6 in-force, 5 amended |
+| [`../../aadhaar/corpus-acts`](../../aadhaar/corpus-acts) | `MANIFEST.tsv` | 121 | 121 legislative | 92 in-force, 26 not-yet-applicable, 2 read-down, 1 repealed |
+| [`../../aadhaar/corpus-delegated`](../../aadhaar/corpus-delegated) | `MANIFEST.tsv` | 10 | 9 delegated, 1 constitutional | 9 in-force, 1 not-yet-applicable |
+| [`../../aadhaar/corpus-judgments`](../../aadhaar/corpus-judgments) | `MANIFEST.tsv` | 3 | 3 judicial | 3 in-force |
 
 **The query path** is `lawcite --grep`, which is `lawcorpus.normalise.normalise_query` under `re.IGNORECASE`, so every count here is reproducible with the shipped tool: `/home/daniel/code/bakobo/id-law-kit/.venv/bin/lawcite --grep '<pattern>' --corpus <dir>`. **Case folding is insensitive throughout this file** unless a count says otherwise. Where a query digit had to reach a Thai-digit corpus, the fold is `normalise_query`'s numeral table, not a literal `rg`.
 
