@@ -161,11 +161,8 @@ def main(argv=None) -> int:
         if args.grep:
             hits = corpus.grep(args.grep, in_force_only=args.in_force_only)
             for hit in hits:
-                flag = (
-                    ""
-                    if hit.item.quotable_as_current_law()
-                    else " " + " ".join(hit.item.banners())
-                )
+                marks = hit.item.marks()
+                flag = (" " + " ".join(marks)) if marks else ""
                 print(f"{hit.item.item_id}:{hit.line_no}:{flag} {hit.line}")
             print(f"\n{len(hits)} line(s) in {len({h.item.item_id for h in hits})} item(s).")
             print(

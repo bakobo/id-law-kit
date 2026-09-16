@@ -420,3 +420,17 @@ class TestAnAdditiveColumnNeedsNoMigration:
         with pytest.raises(StaleSchemaError) as e:
             Manifest.read(path)
         assert "lawcorpus.migrate" in str(e.value)
+
+
+class TestMarks:
+    """@fyh6u2nf — what travels with one *line* of an item's text, as against a whole quote."""
+
+    def test_an_in_force_authentic_item_carries_nothing(self):
+        assert an_item().marks() == []
+
+    def test_an_in_force_item_carries_its_qualifier_and_nothing_else(self):
+        assert an_item(quotation_qualifier="（抄）").marks() == ["[（抄）]"]
+
+    def test_an_item_that_is_not_current_law_carries_every_banner(self):
+        marked = an_item(validity="repealed", validity_note="repealed by Act 40 of 2020")
+        assert marked.marks() == marked.banners()

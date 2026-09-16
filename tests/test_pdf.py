@@ -15,10 +15,13 @@ import pytest
 from lawcorpus.pdf import (
     STRUCTURAL_OPENERS,
     PdfError,
+    ReadingOrderError,
     UnknownTraditionError,
     clean_pages,
+    check_reading_order,
     strip_repeated_furniture,
     structural_pattern,
+    watermark_share,
 )
 
 PAGES = [
@@ -567,3 +570,89 @@ class TestStructuralOpenersPerTradition:
         )
         out = "\n".join(strip_repeated_furniture(pages))
         assert out.count("to the Order") == 2
+
+
+class TestAWatermarkedPdfIsRefused:
+    """@k76mmqlc — poppler renders a stamp as text in both modes, and neither can be stored."""
+
+    def _stamped(self, count=4):
+        return [
+            f"In\nSome ordinary provision text on page {n}.\ne\nod\nMore of the same text.\n"
+            for n in range(1, count + 1)
+        ]
+
+    def _clean(self, count=4):
+        return [f"Some ordinary provision text on page {n}.\nMore of the same text.\n"
+                for n in range(1, count + 1)]
+
+    def test_a_clean_document_carries_no_stamp(self):
+        assert watermark_share(self._clean()) == 0.0
+
+    def test_a_stamped_document_is_measured_page_by_page(self):
+        assert watermark_share(self._stamped()) == 1.0
+
+    def test_no_pages_at_all_is_not_a_stamp(self):
+        assert watermark_share([]) == 0.0
+
+    def test_a_clean_document_passes_the_check(self):
+        assert check_reading_order(self._clean()) is None
+
+    def test_a_stamped_document_is_refused_and_both_remedies_are_named(self):
+        with pytest.raises(ReadingOrderError) as excinfo:
+            check_reading_order(self._stamped(), "the 2021 Regulations")
+        message = str(excinfo.value)
+        assert "the 2021 Regulations" in message
+        assert "layout=False" in message
+        assert "publisher" in message
+
+    def test_a_stray_fragment_on_one_page_of_many_is_not_a_stamp(self):
+        # A watermark is stamped on every page. One page with a loose glyph is not one.
+        pages = self._clean(9) + ["Ib\nan isolated fragment on one page.\n"]
+        assert check_reading_order(pages) is None
+
+    def test_a_single_cjk_character_on_a_line_is_not_a_glyph(self):
+        # Vertical setting produces these constantly, and a guard whose first firing is wrong is
+        # the one that gets turned off.
+        pages = [f"条\n本規定の内容{n}について。\n" for n in range(1, 5)]
+        assert check_reading_order(pages) is None
+
+
+@pdftotext_required
+class TestExtractVerifiesTheReadingOrder:
+    def test_a_clean_pdf_still_extracts(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "clean.pdf"
+        pdf.write_bytes(minimal_pdf([["The business shall comply with this Part."]]))
+        assert "The business shall comply" in extract(pdf)
+
+    def test_a_stamped_pdf_is_refused(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "stamped.pdf"
+        pdf.write_bytes(
+            minimal_pdf([["In", f"Operative sentence {n} of the instrument.", "e"]
+                         for n in range(1, 5)])
+        )
+        with pytest.raises(ReadingOrderError):
+            extract(pdf)
+
+    def test_the_check_can_be_declined_by_a_caller_that_has_already_judged_it(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "stamped2.pdf"
+        pdf.write_bytes(
+            minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
+                         for c in "abcd"])
+        )
+        assert "Operative sentence" in extract(pdf, verify_order=False)
+
+    def test_raw_mode_is_not_checked_because_the_caller_has_chosen_it(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "stamped3.pdf"
+        pdf.write_bytes(
+            minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
+                         for c in "abcd"])
+        )
+        assert "Operative sentence" in extract(pdf, layout=False)

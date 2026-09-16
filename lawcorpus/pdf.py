@@ -411,6 +411,76 @@ def raw_pages(path, layout: bool = True) -> list:
     return result.stdout.decode("utf-8", "replace").split("\f")
 
 
-def extract(path, layout: bool = True) -> str:
-    """Extract `path` to text with poppler, then clean it."""
-    return clean_pages(raw_pages(path, layout))
+# A watermark glyph as poppler leaves it in raw mode: a line that is nothing but one or two Latin
+# letters. `aadhaar` measured India Code's diagonal stamp emitting `e`, `od`, `aC`, `di` and `In` on
+# lines of their own — 140 in one 32-page instrument, against 0 in the publisher's own text of it.
+# ASCII deliberately: a single CJK character on a line is ordinary in vertical setting, and a rule
+# that counted it would refuse Japanese documents wholesale. See @k76mmqlc.
+_GLYPH_LINE = re.compile(r"^[A-Za-z]{1,2}$")
+# A watermark is stamped on every page, so the test is the share of pages carrying a glyph line
+# rather than how many there are — structural, not magnitude.
+WATERMARK_PAGE_SHARE = 0.5
+
+
+class ReadingOrderError(LawcorpusError):
+    """A PDF stamped with a watermark, which poppler renders as text in both of its modes.
+
+    `input.format` rather than a leaf of our own, for `TranslationStatusError`'s reason: the
+    obstacle is the shape of the material we were given, at the level the standard fills.
+    """
+
+    code = "e.input.format.reading-order.f"
+
+
+def watermark_share(pages: list) -> float:
+    """The share of pages carrying a line that is nothing but a stray glyph or two.
+
+    Read on the **raw-mode** rendering, because that is the one where the fragments stay visible.
+    In layout mode poppler has already placed them by position, absorbing them into the lines they
+    displaced, which is the failure rather than a way of seeing it.
+    """
+    if not pages:
+        return 0.0
+    stamped = sum(
+        1
+        for page in pages
+        if any(_GLYPH_LINE.match(line.strip()) for line in page.splitlines())
+    )
+    return stamped / len(pages)
+
+
+def check_reading_order(raw_mode_pages: list, what: str = "this PDF") -> None:
+    """Refuse a PDF whose pages carry a watermark, in either rendering.
+
+    Returns None on success, so it reads as an assertion at a call site. There is no rendering of
+    a watermarked page this package can store: `-layout` moves the text the glyphs land in, and
+    without it the glyphs sit on lines of their own that the rejoiner welds into a sentence. See
+    @k76mmqlc.
+    """
+    share = watermark_share(raw_mode_pages)
+    if share <= WATERMARK_PAGE_SHARE:
+        return None
+    raise ReadingOrderError(
+        f"{int(share * 100)}% of the pages of {what} carry a line that is nothing but one or two "
+        f"stray letters, which is what a watermark stamped across a page leaves in poppler's "
+        f"output. Neither rendering of such a page can be stored: with -layout the fragments are "
+        f"placed by position and **displace** the text around them, so a phrase the document "
+        f"contains greps to zero; without it they sit on lines of their own, where the rejoiner "
+        f"welds them into the sentence beneath. Use the publisher's own text of this instrument if "
+        f"there is one, or `raw_pages(path, layout=False)` and handle the fragments yourself."
+    )
+
+
+def extract(path, layout: bool = True, verify_order: bool = True) -> str:
+    """Extract `path` to text with poppler, then clean it.
+
+    In layout mode the document is also rendered without `-layout` and checked for a watermark,
+    because layout mode does not merely pollute the text — it can move it, and once it has, the
+    evidence that it did is gone. That costs a second poppler run and converts a silent false
+    negative into a refusal (@k76mmqlc). `verify_order=False` is the escape hatch for a caller
+    that has already made that judgement.
+    """
+    pages = raw_pages(path, layout)
+    if layout and verify_order:
+        check_reading_order(raw_pages(path, layout=False), str(path))
+    return clean_pages(pages)

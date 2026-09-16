@@ -245,6 +245,22 @@ class ManifestItem:
             lines.append(f"[{self.quotation_qualifier}]")
         return lines
 
+    def marks(self) -> list:
+        """The lines that must travel with one *line* of this item's text in a search result.
+
+        Everything `banners()` carries when the item may not be quoted as current law, and the
+        source's own qualifier always. `cite.py --grep` printed the banners only for an item that
+        is not quotable, so a qualifier on an in-force item was invisible in the most-used output
+        path — `indonesia-id` verified it against five re-OCR'd items, all of them in force. The
+        two questions are different: a validity banner answers "is this law", and for an in-force
+        item the honest answer is nothing worth a line on every hit; a qualifier answers "is this a
+        faithful copy", which is about this copy rather than about the law and is as true of an
+        in-force item as of a repealed one. See @fyh6u2nf.
+        """
+        if not self.quotable_as_current_law():
+            return self.banners()
+        return [f"[{self.quotation_qualifier}]"] if self.quotation_qualifier else []
+
     def quotable_as_current_law(self) -> bool:
         """May this item be presented as a statement of what the law is today?
 

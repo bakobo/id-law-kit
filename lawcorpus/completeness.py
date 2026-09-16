@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass
 
 from .errors import LawcorpusError
-from .normalise import normalise_text
+from .normalise import normalise_text, read_kanji_number
 from .validity import Validity
 
 
@@ -53,7 +53,6 @@ class OracleError(LawcorpusError):
     code = "e.input.format.oracle.f"
 
 
-_KANJI_DIGITS = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 _ROMAN_DIGITS = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
 
 
@@ -86,24 +85,67 @@ def kanji_number(raw: str) -> int:
     Covers 一..九, 十 and 百, which is the whole range article numbering uses. 千 and above are
     refused rather than guessed at, for the reason every oracle here refuses: a reader that invents
     an answer produces an expectation that passes documents it should not.
+
+    The reading itself moved to `normalise.read_kanji_number` when `normalise_query` gained the
+    other direction, so that the two cannot disagree about what 五十七 means (@kcznu7jq). This
+    keeps the published name and the `OracleError` a corpus repo catches.
     """
-    total, current, hundreds = 0, 0, 0
-    for ch in raw:
-        if ch in _KANJI_DIGITS:
-            current = _KANJI_DIGITS[ch]
-        elif ch == "十":
-            total += (current or 1) * 10
-            current = 0
-        elif ch == "百":
-            hundreds += (current or 1) * 100
-            total, current = 0, 0
-        else:
-            raise OracleError(
-                f"'{ch}' is not a kanji numeral this reader knows, in '{raw[:20]}'. The article "
-                f"range cannot be expanded, and guessing at it would produce an oracle that "
-                f"passes everything."
-            )
-    return hundreds + total + current
+    try:
+        return read_kanji_number(raw)
+    except ValueError as e:
+        raise OracleError(
+            f"'{e.args[0]}' is not a kanji numeral this reader knows, in '{raw[:20]}'. The article "
+            f"range cannot be expanded, and guessing at it would produce an oracle that "
+            f"passes everything."
+        ) from e
+
+
+class TruncatedTextError(LawcorpusError):
+    """A text whose length is a round number and which stops mid-sentence.
+
+    A sibling of `CompletenessError` under `e.state.missing.`, because it is the same obstacle —
+    text we hold and can prove is fragmentary — reached by a different route. @zpycgven's oracle
+    cannot see this one: a truncated tail of an instrument whose schedules restart their numbering
+    contributes no heading the body has not already used.
+    """
+
+    code = "e.state.missing.truncated.f"
+
+
+# A publisher's own extraction may stop at a cap with no marker: India Code's text bundle for the
+# DPDP Rules 2025 ends at exactly 100,000 characters, mid-sentence. Neither half of that is
+# evidence on its own — a source may serve an excerpt that ends mid-sentence, and one document in a
+# thousand has a round length by chance — but nothing except a cap produces both. See @k4w7rvit.
+_ROUND_STEP = 1000
+_ROUND_POWER_FLOOR = 4096
+# What a document that was allowed to finish ends with, in every script the programme holds.
+TERMINATORS = ".!?)]\"'’”。！？」』】"
+
+
+def _is_round(size: int) -> bool:
+    """A length nobody's prose lands on by accident: a whole thousand, or a power of two."""
+    return (size >= _ROUND_STEP and size % _ROUND_STEP == 0) or (
+        size >= _ROUND_POWER_FLOOR and size & (size - 1) == 0
+    )
+
+
+def check_not_truncated(text: str, what: str = "this text") -> None:
+    """Raise if `text` looks like it was cut at a cap rather than allowed to end.
+
+    Returns None on success, so it reads as an assertion at a call site rather than as a predicate
+    somebody might forget to test — the shape `Expectation.verify` already uses.
+    """
+    body = "" if text is None else str(text)
+    stripped = body.rstrip()
+    if not stripped or not _is_round(len(body)) or stripped[-1] in TERMINATORS:
+        return None
+    raise TruncatedTextError(
+        f"{what} is exactly {len(body)} characters long and ends mid-sentence, on "
+        f"'...{stripped[-40:]}'. A round number is a cap rather than a document length, and an "
+        f"unmarked cap is invisible to a structure check, because an instrument's trailing "
+        f"schedules restart their numbering and contribute no heading the body has not already "
+        f"used. Refetch, or extract the source document yourself, before storing this."
+    )
 
 
 @functools.total_ordering
