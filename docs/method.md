@@ -174,6 +174,7 @@ Three renderers ship in `lawcorpus`, in descending order of trustworthiness:
 | **Formex** (EU) | `formex.py` | Low — it is markup; structure is given |
 | **CAML** (California) | `caml.py` | Low, one trap: subdivision labels separated by an empty `<span class="EnSpace"/>`, so a naive tag-strip yields `(a)A business` |
 | **PDF** | `pdf.py` | High — a page description, so reading order is *inferred* and running headers land mid-sentence |
+| **PDF, Thai** | `thai.py` | Highest — the general path loses characters silently; see below |
 
 The recurring shape: **the broken output looks fine.** A footer between "the business shall" and
 "not retain" reads plausibly and greps wrong. Layout-only characters are invisible. A `.doc.xml`
@@ -226,6 +227,15 @@ Rules that follow:
   `lawcite --grep` finds text no literal `rg` would. For comparing two strings rather than searching
   — the expected-phrase check of §2 — use `search_key`, which also folds Thai and Arabic numerals
   together and collapses the line wrapping that made that check abort on a *correct* Thai document.
+- **Use `thai.py` for Thai PDFs, and let it refuse.** `pdftotext` drops U+0E33 `ำ` from Royal
+  Gazette PDFs **100% of the time**, so `กำหนด` — "to prescribe" — occurs 87 times in the PDPA and
+  matches zero. It is producer-dependent, so a spot check on a Word-produced document finds nothing
+  wrong. Other Gazette PDFs carry a subset font with no ToUnicode CMap and extract to non-empty,
+  plausibly-Thai-looking noise, with the running header extracting *correctly* while the body does
+  not. So a page whose Thai character ratio collapses, and a document with no `ำ` at all, are
+  refused and routed to OCR. Never reach for NFKC on Thai; the Thai API text is the corpus and the
+  Gazette PDF is provenance.
+
 - **Preserve structure.** "Article 5(1)(a)" must be locatable in the stored text, or quote-or-drop
   degrades into "the phrase appears somewhere in a 90,000-word file."
 - **Sanity-check the shape.** The GDPR has 99 articles and 173 recitals. If your extraction says

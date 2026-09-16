@@ -3,6 +3,13 @@
 Every failure carries a stable symbolic code so a caller can branch on the kind without
 string-matching the prose, and states whether retrying could help. See
 `dev/standards/error-handling.md`.
+
+Two code styles coexist here, and that is a known debt rather than a design. The `BK_`-prefixed
+codes predate `dev/standards/error-codes.md`, whose grammar is
+`<sorter>.<descriptor>[.<sub>].<disposition>` — `e.input.format.f` — and which is what everything
+added since uses, so that a caller can prefix-match a branch of meaning. Converting the older
+codes is a change of published identity for each one, so it is recorded rather than done in
+passing. ~7dau
 """
 
 from __future__ import annotations

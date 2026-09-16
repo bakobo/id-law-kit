@@ -145,8 +145,13 @@ def _rejoin_wrapped_lines(text: str) -> str:
     return "\n".join(out)
 
 
-def extract(path, layout: bool = True) -> str:
-    """Extract `path` to text with poppler, then clean it."""
+def raw_pages(path, layout: bool = True) -> list:
+    """Poppler's output for `path`, split into pages, with no cleaning applied.
+
+    Separate from `extract` because a script with its own hazards needs the pages before this
+    module's cleaning touches them — `thai.py` gates on the raw text and must not rejoin wrapped
+    lines with a space, since Thai has no inter-word spaces.
+    """
     path = Path(path)
     if not path.exists():
         raise PdfError(f"No PDF at {path}.")
@@ -165,4 +170,9 @@ def extract(path, layout: bool = True) -> str:
             f"pdftotext failed on {path} with exit code {e.returncode}: "
             f"{e.stderr.decode('utf-8', 'replace')[:200]}"
         ) from e
-    return clean_pages(result.stdout.decode("utf-8", "replace").split("\f"))
+    return result.stdout.decode("utf-8", "replace").split("\f")
+
+
+def extract(path, layout: bool = True) -> str:
+    """Extract `path` to text with poppler, then clean it."""
+    return clean_pages(raw_pages(path, layout))
