@@ -933,6 +933,70 @@ Shared method and tooling for the identity-law corpus programme = goal:
                 documents shows one, and a body fragment that is only a number carries no meaning to
                 lose.
 
+            Position is not evidence: a bare number is furniture only if the numbers march = decision:
+              id: fu7njgwq
+              why: >
+                @kbdz5bmq's premise is false, and four corpora measured it independently. It reads
+                "a line that is nothing but a number is furniture *because* it sits at the edge",
+                and that is the one rule in this package with no cross-page evidence behind it at
+                all — the text rule needs the line repeated on 60% of pages, the shape rule needs it
+                repeated with only its fields varying, and this one needs nothing. What the edge
+                actually establishes is that a *page number* would be there if there were one. It
+                says nothing about the line that is.
+                What that cost, measured rather than reasoned: `singapore-id` lost `2016` and `2025`
+                from the titles of two amending instruments in NRA 1965 RG 2's amendment-history
+                table, where the PDF wraps `National Registration (Amendment) Regulations` / `2016`
+                / `Date of commencement`, and the bare year was deleted rather than rejoined. That
+                corpus now stores four words less law than its source carries (`singapore-id`
+                @r56tthgf, ticks ~55kg and ~6wh3). `japan-id` lost two footnote markers from a
+                governance report, and the Japanese rejoiner then **welded footnote 15 onto footnote
+                14 and produced a sentence neither footnote contains** — the same mechanism as the
+                Indonesian `REPUBLIK INDONESIA -2- BABI` that @kbdz5bmq was written to stop, running
+                the other way, and fabrication rather than loss. `thailand-id` lost
+                `ขมธอ. 24-2563` from both cover pages and five footnote markers. A rule whose whole
+                case is position cannot tell 「15」 from 「13」, and nothing downstream can either.
+                **The fix ~55kg suggests was built and refuted by measurement.** It proposes
+                restoring the raw-index window, on the reading that the blank-skipping rank is what
+                widened the rule's reach — true on the Singapore evidence, where the wrapped `2016`
+                sits at raw index 31 of 38 and rank 31 of 34, inside the last three *filled* lines
+                and outside the last three raw ones. But measured across the Indonesian corpus,
+                **every** page marker sits at raw index 3 to 5 behind three or four leading blank
+                lines, at rank 2: the raw window of 3 does not reach a single one of them. Reverting
+                would trade four Singapore words for some seven hundred Indonesian page markers,
+                each of which is an unterminated line the rejoiner then welds into the heading
+                beneath it. The window was never the defect; the absent evidence was.
+                Chose to give the rule the same kind of evidence the other two carry, in the form
+                the thing itself takes: **page numbers march with the pages.** Read each candidate's
+                value and subtract the page index, and a real numbering run is a **cohort** sharing
+                one offset — 1 for a document numbered from its first page, -24 for the Penjelasan
+                that restarts after it. A cohort is furniture when three things hold: at least
+                `MIN_FURNITURE_PAGES` pages carry it, two of those pages are **adjacent**, and the
+                offset is no larger than the document is long. Only lines inside a qualifying cohort
+                are dropped, so the rule now deletes a number because other numbers corroborate it.
+                Measured over 36 PDFs from two corpora: **744 drops become 729, and all 15 of the
+                survivors are false positives** — `1999`, `2016`, `2017` and `2025` from NRA 1965 RG
+                2, `2000` and a cover-page `1` from the Interpretation Act, three more cover-page
+                `1`s, and `031`, `-702-`, `2`, `-24-` and `2025` from five Indonesian instruments.
+                Not one legitimate page marker is lost, including the two independent numbering runs
+                in UU 11/2008 (offsets 1 and -24) and UU 12/2011's sparse run of 19 pages across a
+                span of 48.
+                **Both halves of the test are load-bearing, and each was refuted on its own.**
+                Adjacency alone keeps the Singapore years, because `2016` and `2017` sit on adjacent
+                pages 22 and 23 and share the offset 1994 — two pages, adjacent, a perfect cohort of
+                a kind no document has: the bound on the offset is what refuses them, since a
+                25-page document does not begin at printed page 1995. The bound alone keeps a pair
+                of numbers that agree by coincidence across a long document, which adjacency
+                refuses. Rejected a third condition, density — requiring the cohort to fill
+                `SHAPE_THRESHOLD` of its own span, as the shape rule does. Measured, it refuses UU
+                12/2011's real run by one page and costs 14 correct drops, while catching nothing
+                the other two conditions do not.
+                Tradeoff, stated rather than glossed: an excerpt whose printed numbering starts
+                beyond its own length is no longer served — pages 340 to 365 of a volume have an
+                offset of 340 and will keep their numbers — and so is a document carrying page
+                numbers on exactly two non-adjacent pages. Both fail by leaving a page number in the
+                text, which is visible to anyone reading it. The failure this replaces was a deleted
+                year, which is visible to no one.
+
     A watermarked PDF is refused, because neither rendering of it is trustworthy = decision:
       id: k76mmqlc
       why: >
