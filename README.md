@@ -95,14 +95,19 @@ omitting it returns HTTP 400 with a plain-text explanation.
 `pdf.extract` is English below the surface. Its line rejoiner reads a line as mid-sentence unless it
 ends in `.:;?!` and rejoins with **a space**, which neither Japanese nor Thai writes between words.
 It now refuses a predominantly CJK extraction and names `lawcorpus.japanese.extract_japanese`,
-which rejoins with no separator; `lawcorpus.thai.extract_thai` gates the two ways `pdftotext`
-destroys Thai. Neither is a repair of the general path — both refuse more than they fix, because
-text stored after being mangled is the failure that looks like success.
+which rejoins with no separator; `lawcorpus.thai.extract_thai` gates the three ways `pdftotext`
+destroys Thai — a dropped U+0E33, mojibake from a subset font with no ToUnicode CMap, and dropped
+tone marks. Neither is a repair of the general path — both refuse more than they fix, because text
+stored after being mangled is the failure that looks like success.
 
-On the search side, a CJK query built with `normalise_query` tolerates the space that Japanese
-heading typography puts *inside* a short word: e-Gov writes 「附　則」, so a bare `rg 附則` finds none
-of the supplementary-provision headings in a corpus while finding every cross-reference to them.
-`lawcite --grep` already goes through it; a hand-written `rg` does not.
+On the search side, a query built with `normalise_query` reaches text a literal one cannot. **A
+digit matches in every numeral system the package declares**, so `มาตรา 7` finds `มาตรา ๗` — stored
+Thai text keeps the source's own digits, because they are the authentic text rather than layout. And
+a CJK query tolerates the space that Japanese heading typography puts *inside* a short word: e-Gov
+writes 「附　則」, so a bare `rg 附則` finds none of the supplementary-provision headings in a corpus
+while finding every cross-reference to them. `lawcite --grep` already goes through it; a
+hand-written `rg` does not. A character class you write yourself survives — `[0-9]` is rewritten to
+`[0-9๐-๙]` rather than broken.
 
 ## A second thing, if you reach for the browser fetcher
 
@@ -131,6 +136,7 @@ One tab-separated schema for every corpus, so `cite.py` and `sweep.py` work ever
 | `validity_note` | what changed it: the amending act, the judgment, the repeal |
 | `translation_status` | see above — required |
 | `translation_of` | the `item_id` this renders; mandatory unless `translation_status` is `authoritative` |
+| `quotation_qualifier` | free text the source qualifies its own copy with, printed above every quote — `（抄）` for an instrument e-Gov serves in part, SSO clause (8) for an unofficial consolidation. Optional, and a manifest written before it existed reads unchanged |
 | `version_id` | the version this pins — a consolidation date, a version stamp, a release tag |
 | `lang` | ISO 639-3 (`eng`) |
 | `source_url` | where it was retrieved from |
