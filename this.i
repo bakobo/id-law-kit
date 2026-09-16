@@ -237,6 +237,32 @@ Shared method and tooling for the identity-law corpus programme = goal:
                 user-written character class produces a nested class that silently matches the
                 wrong thing; it is documented rather than parsed for, because parsing a regex to
                 normalise it costs more than the trap does.
+              children:
+                A CJK query tolerates the space letter-spacing puts inside a word = decision:
+                  id: ux7izhdj
+                  why: >
+                    e-Gov writes the supplementary-provision heading as 「附　則」, U+3000 between the
+                    two characters — 76 of one Act's 77 `<SupplProvisionLabel>` elements do it —
+                    using the ideographic space as *letter-spacing inside a word*, which is ordinary
+                    Japanese heading typography. `rg 附則` therefore finds none of those headings
+                    while finding 312 cross-references to them in body text, which is @f5mvj6's
+                    silent false negative exactly. The first conclusion reverses the obvious
+                    reading: **@amdvdsah is not the cause, and narrowing it would not help.** Left
+                    unfolded the heading is 「附　則」 and `附則` still matches nothing; folded it is
+                    「附 則」 and a user who types an ASCII space at least reaches it. Dropping U+3000
+                    from the set would forfeit the chapter-heading case `第一章　総則` and buy
+                    nothing, so the rule stands unamended. Rejected collapsing the space on the text
+                    side, which is where `japan-id` had to put it: doing it unconditionally welds
+                    `第一章総則` together, so it needs a rule for which spaces fall inside a word, and
+                    that rule is a Japanese lexicon. Chose the query side, which is what @liv2lsxs
+                    is for — `normalise_query` inserts `[ 　]?` between two adjacent CJK
+                    characters, so `附則` reaches 「附則」, 「附 則」 and raw 「附　則」 alike. Confined to
+                    pairs where *both* characters are CJK, which is what keeps it from ever landing
+                    beside a regex metacharacter; ASCII stays untouched, the same asymmetry
+                    @liv2lsxs already draws. Tradeoff: a CJK phrase query can now match across a
+                    genuine word separator, so 「個人情報」 would hit a line reading 「個人 情報」. That
+                    is a false positive, visible the moment the hit is read, and what it replaces is
+                    a zero that reads as a finding.
 
     An extraction is refused unless it matches a declared structure = decision:
       id: zpycgven
@@ -277,6 +303,90 @@ Shared method and tooling for the identity-law corpus programme = goal:
             jurisdiction-specific readers in a jurisdiction-neutral package, accepted because the
             alternative is the same code written five times in five corpus repos, which is the
             duplication @s62c4j exists to prevent.
+
+        A scan can be bounded, because a schedule restarts the numbering = decision:
+          id: qd6p2f3x
+          why: >
+            `Expectation.verify` reads the whole document and calls the headings out of order unless
+            they ascend. Japanese 附則 — supplementary provisions — restart at 第一条 in every
+            instrument that has them, and an Act carries one block per amending act, so a correct
+            document reads as damaged. `japan-id` worked around it by prefixing every supplementary
+            line with its block label, which is a rendering changed to satisfy a checker, and the
+            wrong place for the fix: nothing about this is Japanese. A UK schedule, a French annexe
+            and a US appendix all restart their numbering. Chose a `boundary` regex on `scan` and on
+            `Expectation`, matched per line, that ends the scan at the first line matching it — over
+            teaching `verify` to tolerate a descending step. Tolerance is the weaker answer twice
+            over: it would forgive the OCR misread @zpycgven's own message describes, UU 27/2022's
+            BAB XI reading as a bare I between IX and X, and it would let a provision surviving only
+            inside a schedule satisfy a declaration about the main body — so a lost article would
+            read as present. Bounding the scan fixes both at once, because what is declared and what
+            is scanned then describe the same part of the document. The two built-in oracles set
+            their own boundary (附則, 부칙), since knowing where a jurisdiction's schedules begin is
+            exactly what a jurisdiction-specific oracle is for. Default `None`, so no existing caller
+            changes. Tradeoff: everything past the boundary is checked by nothing, and a corpus that
+            wants its schedules verified declares a second expectation over them rather than getting
+            it free.
+
+        The Japanese oracle reads the two shapes that make a correct document look damaged = decision:
+          id: y3aozl55
+          why: >
+            `japanese_article_range` refused two documents e-Gov serves with nothing wrong with them.
+            First, 「第十条から第十五条まで　削除」 — six consecutive repealed articles collapsed into one
+            heading, which is ordinary drafting; a heading scan reads the first and reports the other
+            five missing. Second, `<MainProvision Extract="true">`, e-Gov saying it is serving a
+            *part* of an instrument whose table of contents still describes the whole, so the oracle
+            declares articles the response was never going to carry. `japan-id` handled both in its
+            own harvester, so the next Japanese corpus would have written them again. For the
+            collapsed range, chose to read it from the instrument's own `<ArticleTitle>` and drop
+            those articles from the expectation, over emitting five headings the source does not
+            contain so that the count comes out — an oracle permitted to edit its evidence passes
+            everything eventually. For the partial document, chose an expectation that declares
+            nothing and still checks **order**, over the caller's workaround of skipping the oracle
+            outright: order is what caught a rendering bug in `japan-id` nobody was looking for,
+            where a sub-item opening 「第九条第四号に掲げる…」 read as article 9 arriving after article
+            10. Tradeoff: a partial instrument is then verified by almost nothing, so its `source`
+            string has to say so in the words of the refusal it will never raise — an expectation
+            that passes everything is worse than no oracle at all (@zpycgven), and the only defence
+            against it being mistaken for one is that it announces itself.
+
+        The kanji numeral reader is public, because Chinese will want the same door = decision:
+          id: ooyin3yr
+          why: >
+            `_kanji` was private, so `japan-id` read a single article number by calling
+            `scan("第五十七条", "第", numerals="kanji")[0]` — assembling a fake heading in order to
+            reach a parser. Chose to publish it as `kanji_number`. It is fifteen lines, it is not
+            Japanese but CJK — the same characters number Chinese provisions — and a corpus that
+            must read 一二三十百 outside a heading scan has no other way in. Rejected publishing the
+            arabic, roman and thai readers beside it for symmetry: `int()` and a digit fold need no
+            door, and symmetry here would be four public names covering one real need. Tradeoff: one
+            more public name to keep stable, against a caller otherwise reaching into a private one,
+            which is the same dependency with none of the obligation admitted.
+
+    A Japanese PDF path, because the English cleaner corrupts one silently = decision:
+      id: 3i2xqflu
+      why: >
+        `pdf.extract`'s line rejoiner is English. `_UNTERMINATED` judges a line mid-sentence unless
+        it ends in `.:;?!`, so every Japanese line ending in 。 is read as unfinished and welded to
+        the one below — and the weld inserts **a space**, which Japanese does not put between words.
+        Over a Digital Agency slide it turns 「③発行者の電子署名から構成される」 into 「③発行者の 電子署名
+        から構成される」, and the phrase can no longer be found at all: the cleaner manufacturing the
+        false negative rather than the PDF. `japan-id` wrote its own extractor and cited @7xsnhink
+        for doing it, which is the right precedent in the wrong place — the next Japanese corpus
+        writes it again. Two halves, following @7xsnhink in both. `pdf.clean_pages` **refuses** an
+        extraction whose CJK character share crosses a threshold, naming the module that handles it:
+        a gate, not a repair, because text stored after being welded is the failure that looks like
+        success, and the English path had no way of announcing that it was the wrong one. And
+        `japanese.py` carries the working path — rejoin with no separator, only where the previous
+        line ends mid-sentence by Japanese punctuation and the next opens with a Japanese character
+        rather than a bullet or an enumerator. Conservative in both directions, because welding two
+        unrelated slide fragments together invents a phrase, which is the same failure pointing the
+        other way. Rejected a `script=` argument on `extract`: @amdvdsah's finding is that a document
+        does not reliably declare its script and the caller frequently does not know either, so the
+        share is measured rather than declared. Hangul is deliberately outside the measure — Korean
+        writes spaces between words, so the English rejoiner is approximately right there and a gate
+        would refuse documents it can handle. Tradeoff: a genuinely mixed document has to be routed
+        by hand, and the threshold is a number read off the documents in hand rather than derived
+        from anything.
 
     Thai PDFs get their own path, which refuses more than it repairs = decision:
       id: 7xsnhink
