@@ -220,3 +220,38 @@ Shared method and tooling for the identity-law corpus programme = goal:
             jurisdiction-specific readers in a jurisdiction-neutral package, accepted because the
             alternative is the same code written five times in five corpus repos, which is the
             duplication @s62c4j exists to prevent.
+
+    Thai PDFs get their own path, which refuses more than it repairs = decision:
+      id: 7xsnhink
+      why: >
+        `pdftotext` drops U+0E33 `ำ` from Gazette PDFs **100% of the time**: `กำหนด` — "to
+        prescribe", among the highest-frequency verbs in any statute — occurs 87 times in the PDPA
+        and matches zero. The loss is producer-dependent, so a spot check on a Word-produced
+        document finds nothing wrong. A second class of Gazette PDF carries a subset font with no
+        ToUnicode CMap and extracts to non-empty, plausibly-Thai-looking noise, which the
+        empty-extraction guard cannot see. Chose to gate rather than to repair: an extraction whose
+        Thai character ratio collapses, or which contains no U+0E33 at all in 200 KB of Thai prose,
+        is **refused** and routed to OCR. Rejected storing it with an `extraction_risk` flag, for
+        the reason @zpycgven gives — a flag is a thing a later agent reads past, and this corpus
+        exists to support negative claims. Rejected NFKC as the normalisation, in the strongest
+        terms available: it takes `สำนักงาน` from 18 hits to 0, so the standard remedy is the
+        failure. Tradeoff: Thai instruments that a human could read past the damage are refused
+        outright, and the Thai corpus depends on the API's section-by-section JSON as its text with
+        the Gazette PDF as provenance only.
+      children:
+        Mark reordering is repaired only where a repair cannot be wrong = decision:
+          id: psletl4a
+          why: >
+            `pdftotext` orders glyphs by horizontal position, so a Thai tone mark sitting above its
+            base consonant is emitted *after* the following consonant: `เล่ม` extracts as `เลม่`,
+            `หน้า` as `หนา้`. Nothing in Unicode normalisation repairs it — NFC of `เลม่` is not
+            `เล่ม`. The tempting fix, moving any mark left past the preceding consonant, is wrong:
+            `กล่าว` is a correct consonant cluster with the mark on the *second* consonant, and the
+            two cases are indistinguishable without a lexicon. So the repair is confined to the
+            sequence that can never be correct — a tone mark following U+0E32/U+0E33/U+0E45, which
+            repairs `หนา้` — and the ambiguous cluster case is left alone rather than guessed at.
+            Rejected a lexicon-based repair as out of proportion to a kit whose Thai text comes from
+            an API in the first place; the Gazette header, where the reordering was observed, is
+            stripped as furniture instead. Tradeoff: a Thai corpus built from PDFs still carries
+            reordered marks in body text, and `search_key` does not fold them, so a phrase search
+            across one can still under-count — recorded as a tick rather than pretended away.
