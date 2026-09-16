@@ -180,6 +180,49 @@ Shared method and tooling for the identity-law corpus programme = goal:
             broken in each repo until its owner runs one command, which is the price of not choosing
             the value on their behalf.
 
+        A qualifier that must travel with every quotation gets a column, defaulted = decision:
+          id: ublm5oib
+          why: >
+            Tick ~7kgs deferred this pending a second source, and the second source arrived a day
+            later with a different qualifier, which is the finding. `japan-id` writes 「（抄）」 into
+            `citation` because e-Gov serves some instruments as `<MainProvision Extract="true">` and
+            the partiality has to reach anyone who quotes one. `singapore-id` writes SSO clause (8)
+            into `citation` because SSO declares its own text unofficial and disapplies Interpretation
+            Act s48 to anything copied from it, and that has to reach the same reader. Two repos,
+            two different facts, one workaround: both concluded that `citation` is the only field
+            that travels with a quotation, and both said so in their own `this.i` — `singapore-id`'s
+            @dt24v5pp ends "worth raising with `id-law-kit` rather than solving twice."
+            The second source therefore refutes the shape ~7kgs was holding out for. A
+            partial-instrument flag would carry Japan's case and not Singapore's, and the tick's own
+            objection to it stands — a boolean does not say what is missing, and a field naming the
+            omitted provisions duplicates what the oracle computes. What the two cases share is not
+            partiality; it is that **the source qualifies its own text in a way a quotation must
+            carry**. So the field is `quotation_qualifier`, free text, and `banners()` prints it
+            above every quote beside the validity and translation lines.
+            Free text rather than a vocabulary, which is the opposite of what `validity`,
+            `authority_tier` and `translation_status` chose, and the difference is deliberate. Those
+            three are read by code — they decide `quotable_as_current_law`, they sort by tier, they
+            gate a sweep — so an unrecognised token must be refused. This one is read by a person:
+            a disclaimer and an excerpt mark have nothing in common to enumerate, and a closed
+            vocabulary would have had to be guessed at from one source and then broken by the second,
+            which is exactly what just happened to the flag. Nothing branches on its value.
+            **Optional, with a safe default, and therefore no migration** — which is the whole reason
+            it can land at all. @elsvh64d's cost line ("a fourth hand-curated field on every item in
+            five corpora that have no translation problem at all") is the objection, and it only
+            applies to a *required* field. Absence here is not a guess about the world the way an
+            absent `translation_status` was: an item with no qualifier is an item whose source did
+            not qualify it, which is the ordinary case and the honest reading. So `from_row` fills a
+            `DEFAULTED_COLUMNS` member that is not present, an existing fifteen-column manifest reads
+            unchanged, and the column appears in a file the next time its harvester writes one.
+            `LEGACY_COLUMNS` is frozen as a literal in the same change, because it had been derived
+            from `COLUMNS` and would otherwise have grown a column it never had — which is how
+            @oa2bvav5's seven broken manifests would have become eight.
+            Tradeoff: nothing mechanical can filter partial items out of a sweep, which is the cost
+            ~7kgs named and this does not pay off. A qualifier is prose, so an agent reading the
+            manifest programmatically still cannot classify one — it can only see that there is a
+            qualifier and print it, which is what a banner is for. The vocabulary question is
+            reopened by a consumer that needs to *filter*, not by a third qualifier.
+
     Layout-only characters are normalised out of stored text = decision:
       id: f5mvj6
       why: >
