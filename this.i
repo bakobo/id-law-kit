@@ -239,8 +239,15 @@ Shared method and tooling for the identity-law corpus programme = goal:
                 is nothing worth a line on every hit. A qualifier answers "is this a faithful copy",
                 and that is as true of an in-force item as of a repealed one, because it is about
                 this copy rather than about the law — which is @ublm5oib's own reading of the field.
-                So `ManifestItem.marks()` carries the banners when the item may not be quoted as
-                current law, and the qualifier always.
+                So `ManifestItem.marks()` carries every banner when the item may not be quoted as
+                current law, and everything below the validity line always — which is the
+                translation banner as well as the qualifier, because tick ~4j4t names both and they
+                are the same kind of thing. Singapore's SSO declares its own text unofficial and
+                Thailand's official English disclaims authority; both items are in force, so both
+                banners were suppressed in search output exactly as the qualifier was. The cut is
+                positional and it is not a coincidence: `banners()` puts the validity line first
+                because it is the only one that is about the *law*, and everything after it is
+                about this *copy*.
                 Rejected printing `banners()` unconditionally, which puts `[in force]` on every line
                 of every search in five corpora — noise, and noise is what stops banners being read
                 (@elsvh64d's own argument for why authentic text stays quiet). Rejected a flag,
