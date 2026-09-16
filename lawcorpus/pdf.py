@@ -103,7 +103,16 @@ STRUCTURAL_OPENERS = {
     "indonesian": r"""
         BAB\b | BAGIAN\b | Bagian\b | PARAGRAF\b | Paragraf\b
       | PASAL\b | Pasal\b
-      | [a-z0-9]{1,3}\.[ \t]        # a.  1.  12.  — the space is what keeps a decimal out
+      # A label, and nothing a word can be. `[a-z0-9]{1,3}\.` used to stand here and matched
+      # `out. `, so an English sentence wrapping after "choice to opt-" opened a block and one of
+      # `ccpa`'s regulation sections was split down the middle; `in.` and `to.` qualify too. A
+      # label is a single letter, or a short run carrying a digit — which keeps this corpus's
+      # OCR-mangled numbers (`t4.` for `14.`, `2o8.` for `208.`) and admits no English word.
+      # The space after the stop is what keeps a decimal out. See @o3dodx44.
+      # The lookahead is @avcicqvb's, which the common-law entry above already carries: a label is
+      # followed by the thing it labels, and `2017.` alone on a line is a wrapped year.
+      | [a-z]\.(?=[ \t]+\S)                       # a.  b.
+      | [a-z0-9]{0,2}\d[a-z0-9]{0,2}\.(?=[ \t]+\S)   # 1.  12.  123.  t4.  284a.
       | MEMUTUSKAN | MENETAPKAN | Menimbang | Mengingat | Menetapkan
       | PRESIDEN\b | UNDANG-UNDANG\b | PERATURAN\b | PENJELASAN\b | LAMPIRAN\b
     """,
@@ -297,7 +306,7 @@ def _counts_up(rows: list) -> bool:
     )
 
 
-def _shape_candidates(pages: list) -> dict:
+def _shape_candidates(pages: list, structural) -> dict:
     """Every edge template that could be a running head, with the pages and field values it has.
 
     A line the package's structural grammar recognises is excluded here and nowhere else. That is
@@ -311,7 +320,7 @@ def _shape_candidates(pages: list) -> dict:
     for index, page in enumerate(pages):
         rows = {}
         for line in reversed(_edge_lines(page, FURNITURE_LINES)):
-            if _STRUCTURAL.match(line):
+            if structural.match(line):
                 continue
             shape = _shape(line)
             if _FIELD not in shape:
@@ -327,7 +336,7 @@ def _shape_candidates(pages: list) -> dict:
     return seen
 
 
-def _furniture_shapes(pages: list) -> set:
+def _furniture_shapes(pages: list, structural) -> set:
     """Shapes that recur across the pages they span with a page number embedded in them.
 
     `strip_repeated_furniture` matches a running head by its exact text, and a publisher that
@@ -345,7 +354,7 @@ def _furniture_shapes(pages: list) -> set:
     """
     bar = max(MIN_FURNITURE_PAGES, math.ceil(len(pages) * SHAPE_THRESHOLD))
     groups = {}
-    for shape, rows in _shape_candidates(pages).items():
+    for shape, rows in _shape_candidates(pages, structural).items():
         if _counts_up(rows):
             groups.setdefault(_head_group(shape), []).append((shape, rows))
 
@@ -361,7 +370,7 @@ def _furniture_shapes(pages: list) -> set:
     return furniture
 
 
-def strip_repeated_furniture(pages: list) -> list:
+def strip_repeated_furniture(pages: list, *, traditions=()) -> list:
     """Drop running headers, footers, and page numbers.
 
     Frequency alone is not enough, and it fails in two directions. "Page 1 of 127" never repeats
@@ -389,6 +398,7 @@ def strip_repeated_furniture(pages: list) -> list:
     That is why this drops lines and `indonesia-id`'s `_FURNITURE_PREFIX`, which rewrites them, was
     not lifted: rewriting needs a rule about which part of a line to keep. See @zga5midk.
     """
+    structural = structural_pattern(*traditions)
     if len(pages) < 2:
         return list(pages)
 
@@ -399,7 +409,7 @@ def strip_repeated_furniture(pages: list) -> list:
 
     threshold = max(MIN_FURNITURE_PAGES, int(len(pages) * FURNITURE_THRESHOLD))
     furniture = {line for line, n in edge_counts.items() if n >= threshold}
-    shapes = _furniture_shapes(pages)
+    shapes = _furniture_shapes(pages, structural)
     marks = _page_marks(pages)
     offsets = _numbering_offsets(pages, marks)
 
@@ -422,7 +432,7 @@ def strip_repeated_furniture(pages: list) -> list:
     return out
 
 
-def clean_pages(pages: list) -> str:
+def clean_pages(pages: list, *, traditions=()) -> str:
     """Turn extracted pages into one searchable document."""
     if not pages:
         raise PdfError(
@@ -447,16 +457,16 @@ def clean_pages(pages: list) -> str:
             "here: it writes spaces between words.)"
         )
 
-    text = "\n".join(strip_repeated_furniture(pages))
+    text = "\n".join(strip_repeated_furniture(pages, traditions=traditions))
     text = normalise_text(text.replace("\f", "\n"))
     text = "\n".join(line.rstrip() for line in text.splitlines())
-    text = _rejoin_wrapped_lines(text)
+    text = _rejoin_wrapped_lines(text, structural_pattern(*traditions))
     text = _MULTISPACE.sub(" ", text)
     text = _BLANKS.sub("\n\n", text)
     return text.strip() + "\n"
 
 
-def _rejoin_wrapped_lines(text: str) -> str:
+def _rejoin_wrapped_lines(text: str, structural) -> str:
     """Undo the hard wrapping pdftotext inherits from the page.
 
     Left wrapped, a search for a phrase spanning a line break fails — the same silent-false-
@@ -468,7 +478,7 @@ def _rejoin_wrapped_lines(text: str) -> str:
             out
             and line.strip()
             and out[-1].strip()
-            and not _STRUCTURAL.match(line)
+            and not structural.match(line)
             and _UNTERMINATED.search(out[-1])
         ):
             out[-1] = out[-1].rstrip() + " " + line.strip()
@@ -578,7 +588,7 @@ def check_reading_order(raw_mode_pages: list, what: str = "this PDF") -> None:
     )
 
 
-def extract(path, layout: bool = True, verify_order: bool = False) -> str:
+def extract(path, layout: bool = True, verify_order: bool = False, *, traditions=()) -> str:
     """Extract `path` to text with poppler, then clean it.
 
     `verify_order=True` asks for @k76mmqlc's watermark check, which renders the document a second
@@ -592,7 +602,8 @@ def extract(path, layout: bool = True, verify_order: bool = False) -> str:
     reordering it was built for is real and is now undetected here; catching it needs geometry
     (`pdftotext -bbox`), not a statistic over the text.
     """
+    structural_pattern(*traditions)
     pages = raw_pages(path, layout)
     if layout and verify_order:
         check_reading_order(raw_pages(path, layout=False), str(path))
-    return clean_pages(pages)
+    return clean_pages(pages, traditions=traditions)

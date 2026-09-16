@@ -702,6 +702,53 @@ class TestStructuralOpenersPerTradition:
         assert structural_pattern("common-law").match("23A.—(1)")
         assert not structural_pattern("common-law").match("Pasal 13")
 
+
+class TestAListLabelIsNotAWord:
+    """@o3dodx44 — `[a-z0-9]{1,3}\\.` is `a.` and `12.` and also `out.`, which split a sentence."""
+
+    @pytest.mark.parametrize("line", ["out. Illustrative examples", "in. The business", "to. A"])
+    def test_an_english_word_at_the_head_of_a_wrapped_line_is_not_an_opener(self, line):
+        assert not structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["a. bahwa", "z. tanggal", "1. Ketentuan", "123. Pasal"])
+    def test_a_real_label_is_still_an_opener(self, line):
+        assert structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["t4. Layanan", "2o8. Jika pasal", "284a. Naskah"])
+    def test_an_ocr_mangled_number_is_still_a_label(self, line):
+        # indonesia-id's scans render 14. as t4. and 208. as 2o8. No English word carries a digit.
+        assert structural_pattern().match(line), line
+
+    def test_the_sentence_ccpa_lost_is_rejoined(self):
+        pages = [
+            "impairing a consumer's choice to opt-\nout. Illustrative examples follow:\nEnd one.",
+            "A second page of the regulations.\nWith a second line of text.\nEnd two.",
+        ]
+        # The rejoiner always joins with a space, so the hyphen stays; what the fix changes is that
+        # `out.` no longer opens a block, leaving the sentence severed at the line break.
+        assert "\nout. Illustrative" not in clean_pages(pages)
+        assert "opt- out. Illustrative examples follow:" in clean_pages(pages)
+
+    def test_a_caller_can_name_the_traditions_the_document_is_written_in(self):
+        pages = [
+            "A first line of text.\nmeans the California\nPasal 12\nEnd one.",
+            "A second page of the regulations.\nWith a second line of text.\nEnd two.",
+        ]
+        assert "\nPasal 12" in clean_pages(pages)
+        assert "\nPasal 12" not in clean_pages(pages, traditions=("common-law",))
+
+    def test_an_unknown_tradition_is_refused_at_every_door(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        with pytest.raises(UnknownTraditionError):
+            clean_pages(["a", "b"], traditions=("klingon",))
+        with pytest.raises(UnknownTraditionError):
+            strip_repeated_furniture(["a", "b"], traditions=("klingon",))
+        pdf = tmp_path / "a.pdf"
+        pdf.write_bytes(minimal_pdf([["SECTION ONE", "The business shall comply."]]))
+        with pytest.raises(UnknownTraditionError):
+            extract(pdf, traditions=("klingon",))
+
     def test_an_unknown_tradition_is_refused_rather_than_ignored(self):
         with pytest.raises(UnknownTraditionError) as excinfo:
             structural_pattern("javanese")
