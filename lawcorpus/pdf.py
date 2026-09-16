@@ -29,6 +29,7 @@ from pathlib import Path
 
 from .errors import LawcorpusError
 from .normalise import DIGITS, fold_digits, looks_cjk, normalise_text
+from .textloss import refuse_fabrication
 
 # How many lines at each edge of a page a page number may be looked for in. The window says where
 # a page number would be if there were one; it is not evidence that the line found there is one.
@@ -463,7 +464,11 @@ def clean_pages(pages: list, *, traditions=()) -> str:
     text = _rejoin_wrapped_lines(text, structural_pattern(*traditions))
     text = _MULTISPACE.sub(" ", text)
     text = _BLANKS.sub("\n\n", text)
-    return text.strip() + "\n"
+    text = text.strip() + "\n"
+    # @sqxbhlk2: everything above deletes lines or joins them with a space, so a token that is
+    # here and in no source page means a step rewrote text instead of dropping it.
+    refuse_fabrication("\n".join(pages), text, what="this PDF")
+    return text
 
 
 def _rejoin_wrapped_lines(text: str, structural) -> str:

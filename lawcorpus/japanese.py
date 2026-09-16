@@ -37,6 +37,7 @@ from .normalise import (
     normalise_text,
 )
 from .pdf import raw_pages, strip_repeated_furniture
+from .textloss import CHARACTERS, refuse_fabrication
 
 __all__ = [
     "JapaneseScriptError",
@@ -131,7 +132,11 @@ def clean_japanese_pages(pages: list) -> str:
             out[-1] = out[-1].rstrip() + stripped
         else:
             out.append(stripped)
-    return _BLANKS.sub("\n\n", "\n".join(out)).strip() + "\n"
+    text = _BLANKS.sub("\n\n", "\n".join(out)).strip() + "\n"
+    # @sqxbhlk2, character by character: this rejoiner joins with no separator, so a whitespace
+    # tokeniser would read every correct rejoin as one word vanishing and another appearing.
+    refuse_fabrication("\n".join(pages), text, tokens=CHARACTERS, what="this Japanese PDF")
+    return text
 
 
 def extract_japanese(path, reader=None) -> str:
