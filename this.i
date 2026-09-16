@@ -895,7 +895,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
             Eight stays, and it is no longer one sample; and the dropping rules cannot bite = decision:
               id: zga5midk
               why: >
-                ~4cp4 recorded that `FURNITURE_LINES = 8` came from one Indonesian scanner's Garuda
+                Tick 4cp4 recorded that `FURNITURE_LINES = 8` came from one Indonesian scanner's Garuda
                 and that nothing measured how deep furniture actually runs. Measured now across 24
                 PDFs from two corpora, by asking at what rank the repetition rule finds its
                 furniture at window depths of 3, 5, 8, 12 and 16.
@@ -911,7 +911,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
                 every corpus must choose and none has evidence to choose with; the measurement says
                 the spread between traditions is 0 to 5, which one number covers. It is now backed
                 by sixteen sound PDFs from two corpora rather than by one emblem, which is the whole
-                of what ~4cp4 asked for. Rejected lowering it to 5 to match the measurement exactly,
+                of what tick 4cp4 asked for. Rejected lowering it to 5 to match the measurement exactly,
                 which would leave no margin for the next scanner and buys nothing — the rules inside
                 the window carry their own proof, so a window wider than necessary costs nothing
                 that the evidence test does not already refuse.
@@ -986,7 +986,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
           id: uf4epdvm
           why: >
             @k76mmqlc was built from `aadhaar`'s prose description and shipped without ever being run
-            against a file. ~3azt said so. Run now over 11 India Code PDFs and 17 controls from two
+            against a file. Tick 3azt said so. Run now over 11 India Code PDFs and 17 controls from two
             corpora, and the result is that the **hazard is real and the detector is not**.
             The hazard reproduces exactly as described. In the 2021 Aadhaar (Authentication and
             Offline Verification) Regulations, `publication in the Official Gazette` occurs **once**

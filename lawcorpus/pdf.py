@@ -89,7 +89,9 @@ STRUCTURAL_OPENERS = {
       # year wrapped onto a line of its own is followed by nothing. Without it `1994.` opens a
       # block and `completeness.scan` reads it as section 1994, which refused a correct extraction
       # in 4 of `singapore-id`'s 20 instruments. The `indonesian` entry below already required
-      # its trailing space; this entry was the inconsistent one.
+      # its trailing space; this entry was the inconsistent one. A date opening a line is still
+      # read as an opener, and the shape that would separate it from a decimal paragraph number
+      # has not been found: ~7dgz.
       | \d+[A-Z]{0,2}\.(?=[ \t]*\S)
       | ARTICLE\b | CHAPTER\b | DIVISION\b | TITLE\b
       | Note:
@@ -446,7 +448,7 @@ _GLYPH_LINE = re.compile(r"^[A-Za-z]{1,2}$")
 # watermarked Gazette PDFs score exactly 0.500, while `PUTTASWAMY-2018-SCR` — sound, stored, and a
 # law report whose margin prints paragraph markers `A` to `H` one per line on every page — scores
 # **0.998**. The control maximum is above the positive minimum, so no threshold admits the sound
-# documents and refuses the spoiled ones.
+# documents and refuses the spoiled ones. ~26ka
 WATERMARK_PAGE_SHARE = 0.5
 
 
