@@ -434,3 +434,15 @@ class TestMarks:
     def test_an_item_that_is_not_current_law_carries_every_banner(self):
         marked = an_item(validity="repealed", validity_note="repealed by Act 40 of 2020")
         assert marked.marks() == marked.banners()
+
+    def test_an_in_force_official_translation_still_says_it_is_not_the_text_that_binds(self):
+        # tick ~4j4t: Thailand's official English and Singapore's SSO disclaimer are both on
+        # in-force items, so both were suppressed in search output exactly as a qualifier was.
+        marked = an_item(
+            translation_status="official-non-authoritative",
+            translation_of="original",
+            authority_tier="commentary",
+        )
+        assert marked.quotable_as_current_law()
+        assert marked.marks() == marked.banners()[1:]
+        assert "NOT authentic text" in marked.marks()[0]
