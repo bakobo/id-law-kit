@@ -715,6 +715,51 @@ Shared method and tooling for the identity-law corpus programme = goal:
             of them is a false opener everywhere, and the tests pin each tradition's examples
             precisely because the union makes a mistake travel.
 
+        A provision number must be followed by something; a wrapped year is followed by nothing = decision:
+          id: avcicqvb
+          why: >
+            @zr3b5ll2 rejected `singapore-id`'s `(?=—|\s)` lookahead on the reasoning that its own
+            pattern "is anchored at the start of a line where that cannot arise", and recorded as a
+            tradeoff that a line opening with a year "was already treated as structural by `\d+\.`
+            and still is, so the change adds no new false opener". **Both halves were wrong, and the
+            corpora say so.** A PDF wraps wherever the column ends, so a year does land alone at the
+            start of a line: ETA 2010 breaks "any liability under section 45E, 45F or 45N of the
+            Broadcasting Act" and leaves `1994.`; PDPA 2012 does the same with `2014.`; two sets of
+            National Registration Regulations wrap "come into operation on 1 January" and leave
+            `2017.`. The widening then made it matter more than it had, because @qd6p2f3x's order
+            check had arrived in between: one spurious 1994 among fifty-eight sections makes every
+            later section report out of order, so a correct extraction is **refused**. Reproduced
+            over `singapore-id`'s twenty stored instruments inside that repo's own body window:
+            **5 of 20 scan out of order**, of which 4 are the bare-year shape.
+            The signal is the **rest of the line**, which the number alone does not carry. A real
+            heading in this tradition is `27.—(1)` or `30. The Controller`: the stop is followed by
+            an em-dash, or by a space and the provision. A wrapped year ends its line, so the stop
+            is followed by nothing at all. Chose `\d+[A-Z]{0,2}\.(?=[ \t]*\S)` — the lookahead
+            @zr3b5ll2 rejected, in the place where its stated objection genuinely does not apply.
+            The registry already contained this idea: the `indonesian` entry's `[a-z0-9]{1,3}\.[ \t]`
+            requires the trailing space, so the common-law entry was the inconsistent one.
+            Narrowing `_STRUCTURAL` rather than the rejoiner alone is deliberate, for @zzqzaku4's
+            reason — both consumers of the idea should gain it together. It is safe for the
+            furniture rule, which admits a shape only if it carries a letter or matches
+            `_PAGE_NUMBER`, and `1994.` does neither.
+            Measured over every stored text in reach — 165 across `singapore-id`, `indonesia-id` and
+            `aadhaar`: **8 change, and every change is a genuine rejoin.** The four Singapore
+            instruments, and four in `aadhaar` where a citation's wrapped page number (`…(1948) 2
+            All ER 995, 998.`) had been read as a section heading. The 4 false refusals go.
+            **Rejected also excluding a digit after the stop**, which would have cleared the fifth
+            instrument too — a date, `2.6.2025`, opening a line in the Certification Authority
+            Regulations. The corpora refute it directly: with that rule, `PUTTASWAMY-2018`'s
+            decimal-numbered paragraphs `60.4.` and `125.2.` stop being openers and get welded into
+            the line above, which is a real heading destroyed to fix a date in front matter that
+            causes no refusal. Three more stored texts change under it, and not for the better. The
+            date stays a false opener, visibly, and `singapore-id`'s `terminator` already handles it
+            where it matters.
+            Tradeoff: a genuine heading printed as a bare number alone on a line, with an
+            unterminated line above it, is now welded. None of the 165 stored texts contains one,
+            and the direction is the one @zr3b5ll2 chose deliberately — this package would rather
+            leave a line unjoined than weld one, and here the choice is between a welded line that
+            is a year and a welded line that is a heading, so it goes to the shape that occurs.
+
     Furniture is recognised by its shape, not only by its repeated text = decision:
       id: ly7tho4y
       why: >
