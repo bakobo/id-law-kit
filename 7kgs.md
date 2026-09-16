@@ -2,3 +2,8 @@
 kind: todo
 created: 2026-09-16T17:50Z
 
+- 2026-09-16T17:50Z e-Gov serves some instruments as <MainProvision Extract="true"> — deliberately a part, with the table of contents still describing the whole. japan-id marks that by putting 「（抄）」, the ordinary Japanese excerpt mark, into the manifest's citation field, so the partiality travels with every quotation. That is a decent answer and better than nothing: a reader who cannot see it reads the absence of a provision as the law not containing one, which is exactly the negative claim a corpus exists to support.
+
+Why it is a tick and not a fix. The schema already has three required no-default fields (validity, authority_tier, translation_status) and @elsvh64d's own tradeoff line concedes 'a fourth hand-curated field on every item in five corpora that have no translation problem at all'. A fifth needs more evidence than one source in one jurisdiction. It also needs a shape decision that one case does not settle: a boolean (is_partial) does not say what is missing, while a field naming the omitted provisions duplicates what the completeness oracle already computes — and japanese_article_range(partial=True) now returns an expectation whose source says in words that it verifies almost nothing (@y3aozl55).
+
+Revisit when a second source serves partial instruments, or when a finding is written that turns on an absence in an （抄） item. Until then the citation carries it, and the cost is that nothing mechanical can filter partial items out of a sweep.
