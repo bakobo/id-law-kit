@@ -183,7 +183,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
         A qualifier that must travel with every quotation gets a column, defaulted = decision:
           id: ublm5oib
           why: >
-            Tick ~7kgs deferred this pending a second source, and the second source arrived a day
+            Tick 7kgs deferred this pending a second source, and the second source arrived a day
             later with a different qualifier, which is the finding. `japan-id` writes 「（抄）」 into
             `citation` because e-Gov serves some instruments as `<MainProvision Extract="true">` and
             the partiality has to reach anyone who quotes one. `singapore-id` writes SSO clause (8)
@@ -192,7 +192,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
             two different facts, one workaround: both concluded that `citation` is the only field
             that travels with a quotation, and both said so in their own `this.i` — `singapore-id`'s
             @dt24v5pp ends "worth raising with `id-law-kit` rather than solving twice."
-            The second source therefore refutes the shape ~7kgs was holding out for. A
+            The second source therefore refutes the shape tick 7kgs was holding out for. A
             partial-instrument flag would carry Japan's case and not Singapore's, and the tick's own
             objection to it stands — a boolean does not say what is missing, and a field naming the
             omitted provisions duplicates what the oracle computes. What the two cases share is not
@@ -218,7 +218,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
             from `COLUMNS` and would otherwise have grown a column it never had — which is how
             @oa2bvav5's seven broken manifests would have become eight.
             Tradeoff: nothing mechanical can filter partial items out of a sweep, which is the cost
-            ~7kgs named and this does not pay off. A qualifier is prose, so an agent reading the
+            tick 7kgs named and this does not pay off. A qualifier is prose, so an agent reading the
             manifest programmatically still cannot classify one — it can only see that there is a
             qualifier and print it, which is what a banner is for. The vocabulary question is
             reopened by a consumer that needs to *filter*, not by a third qualifier.

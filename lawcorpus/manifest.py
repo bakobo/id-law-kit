@@ -39,6 +39,7 @@ COLUMNS = (
     "validity_note",
     "translation_status",
     "translation_of",
+    "quotation_qualifier",
     "version_id",
     "lang",
     "source_url",
@@ -48,17 +49,35 @@ COLUMNS = (
     "sha256",
 )
 
+# Columns a row may simply not have. `from_row` fills them, so adding one is not a migration: an
+# absent value here is not a guess about the world the way an absent `translation_status` was, it
+# is the ordinary case. This is what keeps @ublm5oib from repeating @oa2bvav5.
+DEFAULTED_COLUMNS = ("quotation_qualifier",)
+REQUIRED_COLUMNS = tuple(c for c in COLUMNS if c not in DEFAULTED_COLUMNS)
+
 # The schema as it stood before `translation_status` and `translation_of` were added. It is kept
 # so that a manifest written against it is recognised and named once, rather than complained about
 # row by row as thirteen columns that are somehow missing two — see `migrate.py` and this.i
-# @oa2bvav5. It is a closed historical fact, not a supported schema: nothing writes it.
-LEGACY_COLUMNS = tuple(c for c in COLUMNS if c not in ("translation_status", "translation_of"))
+# @oa2bvav5. It is a closed historical fact, not a supported schema: nothing writes it, and it is
+# written out literally rather than derived from `COLUMNS`, which would silently grow it a column
+# it never had every time a new one is added.
+LEGACY_COLUMNS = (
+    "item_id",
+    "citation",
+    "title",
+    "authority_tier",
+    "validity",
+    "validity_note",
+    "version_id",
+    "lang",
+    "source_url",
+    "retrieved",
+    "media_type",
+    "bytes",
+    "sha256",
+)
 
 MIGRATE_COMMAND = "python -m lawcorpus.migrate {path} --translation-status <token>"
-
-# There is no column for an instrument a source serves only *in part*. `japan-id` carries it in
-# `citation`, as 「（抄）」, so the partiality travels with every quotation — a decent answer, and the
-# reason this is a tick rather than a sixth required field. ~7kgs
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -112,6 +131,7 @@ class ManifestItem:
     sha256: str
     validity_note: str = ""
     translation_of: str = ""
+    quotation_qualifier: str = ""
 
     def __post_init__(self):
         object.__setattr__(self, "item_id", _required_text(self.item_id, "item_id"))
@@ -125,6 +145,11 @@ class ManifestItem:
         )
         object.__setattr__(
             self, "translation_of", "" if self.translation_of is None else str(self.translation_of).strip()
+        )
+        object.__setattr__(
+            self,
+            "quotation_qualifier",
+            "" if self.quotation_qualifier is None else str(self.quotation_qualifier).strip(),
         )
 
         try:
@@ -205,12 +230,19 @@ class ManifestItem:
 
         A translation carries two: what happened to the instrument, and whether this is the text
         that binds. An authentic item carries one, because a translation banner on it would be
-        noise.
+        noise. An item whose source qualifies it — an excerpt, an unofficial reproduction — carries
+        that qualifier last, because it is about this copy rather than about the law.
         """
         lines = [self.banner()]
         translation = self.translation_status.banner(self.translation_of)
         if translation:
             lines.append(translation)
+        if self.quotation_qualifier:
+            # The source qualifying its own text — japan-id's （抄） for an instrument e-Gov serves
+            # in part, singapore-id's SSO clause (8) disclaiming its own reproduction. Free text,
+            # because a disclaimer and an excerpt mark have nothing in common to enumerate, and
+            # nothing branches on it. @ublm5oib.
+            lines.append(f"[{self.quotation_qualifier}]")
         return lines
 
     def quotable_as_current_law(self) -> bool:
@@ -233,6 +265,7 @@ class ManifestItem:
             "validity_note": self.validity_note,
             "translation_status": self.translation_status.value,
             "translation_of": self.translation_of,
+            "quotation_qualifier": self.quotation_qualifier,
             "version_id": self.version_id,
             "lang": self.lang,
             "source_url": self.source_url,
@@ -251,13 +284,15 @@ class ManifestItem:
                 f"The row carries column(s) not in the schema: {', '.join(sorted(unknown))}. The "
                 f"schema is: {', '.join(COLUMNS)}."
             )
-        missing = set(COLUMNS) - keys
+        missing = set(REQUIRED_COLUMNS) - keys
         if missing:
             raise ManifestError(
                 f"The row is missing column(s): {', '.join(sorted(missing))}. Every manifest row "
-                f"must carry all {len(COLUMNS)} columns."
+                f"must carry all {len(REQUIRED_COLUMNS)} required columns."
             )
-        return cls(**row)
+        # A defaulted column may be absent: a manifest written before it existed reads unchanged,
+        # and gains the column the next time its harvester writes one. @ublm5oib.
+        return cls(**{c: "" for c in DEFAULTED_COLUMNS if c not in keys}, **row)
 
 
 def _coerce(value, parser):

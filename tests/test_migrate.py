@@ -54,8 +54,13 @@ def write_legacy(path, rows=(LEGACY_ROW,)):
 class TestTheLegacySchemaIsRecognised:
     """A superseded header is named once, not complained about on every row."""
 
-    def test_the_legacy_columns_are_the_current_ones_less_the_two_that_were_added(self):
-        assert set(COLUMNS) - set(LEGACY_COLUMNS) == {"translation_status", "translation_of"}
+    def test_the_legacy_columns_are_a_frozen_historical_fact(self):
+        # Derived from COLUMNS, this set would grow a column every time one is added, and stop
+        # matching the seven files the migration exists for. @ublm5oib froze it as a literal.
+        assert "translation_status" not in LEGACY_COLUMNS
+        assert "translation_of" not in LEGACY_COLUMNS
+        assert "quotation_qualifier" not in LEGACY_COLUMNS
+        assert set(LEGACY_COLUMNS) < set(COLUMNS)
         assert [c for c in COLUMNS if c in LEGACY_COLUMNS] == list(LEGACY_COLUMNS)
 
     def test_reading_one_raises_once_rather_than_per_row(self, tmp_path):
