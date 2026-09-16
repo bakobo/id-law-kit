@@ -533,6 +533,60 @@ Shared method and tooling for the identity-law corpus programme = goal:
             reordered marks in body text, and `search_key` does not fold them, so a phrase search
             across one can still under-count — recorded as a tick rather than pretended away.
 
+        A mixed-script page is judged on whether its Latin reads as words = decision:
+          id: szp4xt3n
+          why: >
+            @7xsnhink's mojibake gate reads a collapsed Thai character ratio as noise from a subset
+            font, and on a Thai document containing Latin it is simply wrong. `thailand-id` had five
+            documents refused, **four of them sound**, and every refusal was a bibliography page —
+            Latin citations inside a Thai instrument, where the Thai share of the letters legitimately
+            falls below half. A gate that refuses good documents is worse than no gate, because the
+            remedy a person reaches for is turning it off, and then the one genuine mojibake document
+            is stored.
+            The discrimination is `thailand-id`'s, lifted rather than reinvented: the share of Latin
+            runs on the page that **read as words** — three or more letters with at least one vowel.
+            Measured 0.92, 0.94, 0.94 and 0.97 on the sound pages against 0.12 on the damaged one, an
+            order of magnitude apart rather than a margin, which is why a crude test is the right one.
+            Mojibake from an encoding-less subset font lands as Latin letters in runs that are short
+            and vowelless; real citations do not.
+            It is wired as a **reprieve inside the gate, not a replacement for it**. The ratio still
+            decides that a page is suspect; the word test can then clear it, and only when there are
+            at least eight Latin runs to judge — below that the score is noise and the page is refused
+            as before, which keeps the gate fail-closed on the case it cannot see. Rejected lifting
+            `thailand-id`'s second test as well, the Thai-OCR trigram agreement: it is a better
+            discriminator and it needs tesseract and a Thai traineddata file, so putting it here would
+            make a gate in the core path depend on a binary most consumers do not install. That test
+            belongs where it is, in the consumer that already pays for OCR. Tradeoff: a damaged page
+            whose noise happens to read as English words is now stored where it used to be refused —
+            bounded by the fact that the failure mode is an encoding, not a language model, and the
+            measured gap is eight to one.
+
+        Dropped tone marks are the third corruption mode, and nothing saw them = decision:
+          id: h4srdl2g
+          why: >
+            @7xsnhink names two ways a Thai extraction is silently wrong, and `thailand-id` found a
+            third that passes both. The DOPA/ThaID manual extracts with U+0E33 intact — sixteen
+            occurrences, so the sara-am gate is satisfied — and with every tone mark gone: `สราง` for
+            `สร้าง`, `ใหม` for `ใหม่`, `พิสูจน` for `พิสูจน์`. Its Thai character ratio is high, so the
+            mojibake gate is satisfied too. The text is readable, wrong, and greps wrong, which is the
+            exact profile @zpycgven refuses to store.
+            Chose the same shape as the sara-am gate, deliberately, because the evidence has the same
+            shape: not one tone mark in a document long enough that zero is impossible. Thai writes
+            U+0E48–U+0E4B on the order of one character in twenty, so 500 Thai characters carrying
+            none is a typesetter that lost them rather than prose that happens not to need them —
+            a wider margin than the sara-am gate runs on at the same floor. A separate error class,
+            because the remediation differs from the other two only in what to tell the reader, and
+            @7xsnhink's family prefix is what a caller matches on.
+            Rejected a *proportional* test — tone marks below some share of the Thai characters —
+            which is what a partial loss would need. Every observed instance is total, a threshold on
+            a ratio needs a corpus to calibrate that nobody has measured, and a gate calibrated by
+            guess refuses good documents, which is @szp4xt3n's lesson from the same week. Rejected
+            also gating on U+FFFD, which `thailand-id` notes is a usable signal in the same document:
+            it is a real signal and a different obstacle — bytes that did not decode, not marks that
+            were dropped — and bundling it here would put two unrelated refusals behind one code.
+            Tradeoff: a document losing *most* of its tone marks still passes, and the gate's honesty
+            is that it says what it checked rather than implying the text is sound.
+
     A browser fetcher, scoped to the two obstacles a browser can actually remove = decision:
       id: lkm7beuo
       why: >
