@@ -13,10 +13,15 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import LawcorpusError
+
+# What may follow an item_id in a stored filename: one extension, then `.gz`. Anything with a
+# further dot in it belongs to a *longer item_id* — `URCP-26.1` is its own rule. See @ovqrxx4g.
+_ONE_EXTENSION = re.compile(r"\.[^.]+\.gz")
 
 
 class StoreError(LawcorpusError):
@@ -90,6 +95,16 @@ class CorpusStore:
         A corpus can mix suffixes — eidas-eudi stores EUR-Lex text as `.txt` and ARF documents as
         `.md`. Callers that assume one suffix get an empty result rather than an error, and an
         empty result from a search reads as a finding.
+
+        **What follows the item_id must be exactly one dotted extension**, so a dot cannot be
+        swallowed. This used to glob `{item_id}.*.gz`, where `*` matches a dot and `1` sorts before
+        `t`, so `URCP-26` resolved to `URCP-26.1.txt.gz` — a *different rule*, not a suffix.
+        `utah-id-law`'s court-rules layer had 13 of 662 items resolving to a sibling. The dotted
+        insertion is universal in legal numbering (第六条の二, ๓๒/๒, `Pasal 13A`), and @kolycpun
+        already refused to collapse one onto its base a layer up. See @ovqrxx4g.
+
+        Walking the directory rather than globbing also means an item_id carrying `*`, `?` or `[`
+        is matched literally instead of being read as a pattern.
         """
         if suffix is not None:
             path = self.path_for(item_id, suffix)
@@ -99,7 +114,12 @@ class CorpusStore:
                     f"retrieve it."
                 )
             return path
-        matches = sorted(self.root.glob(f"{_safe_id(item_id)}.*.gz")) if self.root.exists() else []
+        stem = _safe_id(item_id)
+        matches = sorted(
+            path
+            for path in (self.root.iterdir() if self.root.exists() else ())
+            if path.name.startswith(stem) and _ONE_EXTENSION.fullmatch(path.name[len(stem):])
+        )
         if not matches:
             raise StoreError(
                 f"No corpus file for '{item_id}' under {self.root} (any suffix). Run this repo's "

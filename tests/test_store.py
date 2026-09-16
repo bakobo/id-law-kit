@@ -142,6 +142,30 @@ class TestSuffixResolution:
         with pytest.raises(StoreError):
             store.resolve("absent")
 
+    def test_a_dotted_sibling_does_not_answer_for_its_base(self, store):
+        """@ovqrxx4g — `URCP-26.1` is a different rule from `URCP-26`, not a suffix of it.
+
+        A glob's `*` matches a dot, and `1` sorts before `t`, so the sibling won. Measured in
+        `utah-id-law`'s court-rules layer: 13 of 662 items resolved to the wrong instrument.
+        """
+        store.write("URCP-26.1", "Rule 26.1. Domestic relations actions.\n")
+        store.write("URCP-26", "Rule 26. General provisions governing discovery.\n")
+        assert store.resolve("URCP-26").name == "URCP-26.txt.gz"
+        assert store.resolve("URCP-26.1").name == "URCP-26.1.txt.gz"
+        assert "General provisions" in store.read("URCP-26")
+
+    def test_a_base_with_no_file_of_its_own_is_missing_rather_than_its_siblings(self, store):
+        # Falling through to the sibling is how the wrong text acquired the right citation.
+        store.write("URCrP-9.5", "Rule 9.5.\n")
+        with pytest.raises(StoreError):
+            store.resolve("URCrP-9")
+
+    def test_an_item_id_carrying_a_glob_metacharacter_is_matched_literally(self, store):
+        # The old line handed the id straight to `glob`, so `[` or `*` in an id was a pattern.
+        store.write("rule-a", "not this one\n")
+        with pytest.raises(StoreError):
+            store.resolve("rule-[ab]")
+
     def test_an_explicit_suffix_that_is_absent_names_the_exact_path(self, store):
         store.write("a", TEXT, suffix=".md")
         with pytest.raises(StoreError) as e:

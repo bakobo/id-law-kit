@@ -257,6 +257,55 @@ class TestALetteredSectionNumberOpensABlock:
         for letter in "AOS":
             assert f"\n16{letter}.—(1) Provision text." in out
 
+
+class TestAWrappedYearIsNotAProvisionNumber:
+    """@avcicqvb — a PDF wraps wherever the column ends, so a year does land at a line start.
+
+    @zr3b5ll2 rejected `singapore-id`'s lookahead on the reasoning that this "cannot arise" in a
+    line-anchored pattern. It arises in 4 of that repo's 20 stored instruments, and with
+    @qd6p2f3x's order check in place it refuses a correct extraction.
+    """
+
+    def test_a_wrapped_year_is_rejoined_to_the_sentence_it_ends(self):
+        # ETA 2010, the case that was measured.
+        out = clean_pages([
+            "(3A) To avoid doubt, subsection (1) does not apply in relation to any liability "
+            "under section 45E, 45F or 45N of the Broadcasting Act\n1994.\n"
+        ])
+        assert "Broadcasting Act 1994." in out
+        assert "\n1994." not in out
+
+    def test_a_wrapped_commencement_year_is_rejoined(self):
+        # The two sets of National Registration Regulations wrap on the same phrase.
+        out = clean_pages(["These Regulations come into operation on 1 January\n2017.\n"])
+        assert "on 1 January 2017." in out
+
+    def test_a_heading_followed_by_an_em_dash_is_still_an_opener(self):
+        out = clean_pages(["Marginal note\n27.—(1) The Controller must publish."])
+        assert "\n27.—(1) The Controller must publish." in out
+
+    def test_a_heading_followed_by_a_space_and_its_text_is_still_an_opener(self):
+        out = clean_pages(["Marginal note\n30. The Controller may refuse."])
+        assert "\n30. The Controller may refuse." in out
+
+    def test_a_decimal_paragraph_number_is_still_an_opener(self):
+        """The refutation of the stricter rule, pinned.
+
+        Excluding a digit after the stop would have cleared a stray date too, and `PUTTASWAMY-2018`
+        refutes it: `60.4.` and `125.2.` are the judgment's own paragraph numbers, and the stricter
+        rule welds them into the line above.
+        """
+        out = clean_pages(["Preceding sentence with no stop\n60.4. Presently verification of "
+                           "original documents is rare."])
+        assert "\n60.4. Presently verification" in out
+
+    def test_a_date_opening_a_line_is_still_read_as_an_opener_and_that_is_recorded(self):
+        # `2.6.2025` in the Certification Authority Regulations. It sits in front matter, outside
+        # the body window, so it refuses nothing; clearing it costs the paragraph numbers above.
+        out = clean_pages(["Prepared under the authority of the Revised Edition of the Laws Act "
+                           "1983\n2.6.2025\n"])
+        assert "\n2.6.2025" in out
+
     def test_a_wrapped_sentence_is_still_rejoined(self):
         # The change must not turn every capitalised continuation into a new block.
         out = clean_pages(["means the California\nPrivacy Protection Agency."])
@@ -520,9 +569,16 @@ class TestStructuralOpenersPerTradition:
     def test_a_japanese_opener_is_structural(self, line):
         assert structural_pattern().match(line), line
 
-    @pytest.mark.parametrize("line", ["23A.", "§ 7001.", "(a) means", "ARTICLE III", "Note:"])
+    @pytest.mark.parametrize(
+        "line", ["23A.—(1)", "23A. Heading", "§ 7001.", "(a) means", "ARTICLE III", "Note:"]
+    )
     def test_a_common_law_opener_is_still_structural(self, line):
         assert structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["1994.", "2017.   ", "23A."])
+    def test_a_number_and_a_stop_with_nothing_after_them_is_not_an_opener(self, line):
+        """@avcicqvb — that shape is a year a PDF wrapped onto a line of its own."""
+        assert not structural_pattern().match(line), line
 
     def test_bab_one_is_the_case_the_all_caps_rule_cannot_reach(self):
         # indonesia-id's sharpest observation: the all-caps rule matches BAB XVII and fails BAB I,
@@ -532,7 +588,7 @@ class TestStructuralOpenersPerTradition:
         assert structural_pattern("indonesian").match("BAB I")
 
     def test_a_subset_of_traditions_can_be_asked_for(self):
-        assert structural_pattern("common-law").match("23A.")
+        assert structural_pattern("common-law").match("23A.—(1)")
         assert not structural_pattern("common-law").match("Pasal 13")
 
     def test_an_unknown_tradition_is_refused_rather_than_ignored(self):
@@ -616,9 +672,27 @@ class TestAWatermarkedPdfIsRefused:
         pages = [f"条\n本規定の内容{n}について。\n" for n in range(1, 5)]
         assert check_reading_order(pages) is None
 
+    def test_a_law_reports_margin_column_scores_as_high_as_a_stamp(self):
+        """@uf4epdvm — the measurement that stopped this being a default refusal.
+
+        A law report prints paragraph markers A to H down the margin of every page, one letter
+        per line. `PUTTASWAMY-2018-SCR` — sound, stored, and one of the documents `aadhaar`
+        exists to read — scores 0.998 against the 2021 Regulations' 0.966, so no threshold on
+        this statistic admits the first and refuses the second. Pinned rather than fixed: the
+        function is one publisher's tell, and the honesty is in saying so at the call site.
+        """
+        pages = [
+            "\n".join([str(n), "A", "B", "C", "D", "E", "F", "G", "H",
+                       "SUPREME COURT REPORTS", f"Dignity has a central normative role, {n}."])
+            for n in range(1, 21)
+        ]
+        assert watermark_share(pages) == 1.0
+        with pytest.raises(ReadingOrderError):
+            check_reading_order(pages)
+
 
 @pdftotext_required
-class TestExtractVerifiesTheReadingOrder:
+class TestExtractVerifiesTheReadingOrderOnlyWhenAsked:
     def test_a_clean_pdf_still_extracts(self, tmp_path):
         from lawcorpus.pdf import extract
 
@@ -626,18 +700,22 @@ class TestExtractVerifiesTheReadingOrder:
         pdf.write_bytes(minimal_pdf([["The business shall comply with this Part."]]))
         assert "The business shall comply" in extract(pdf)
 
-    def test_a_stamped_pdf_is_refused(self, tmp_path):
+    def test_a_stamped_pdf_extracts_by_default_because_the_signal_does_not_separate(self, tmp_path):
+        """@uf4epdvm — measured, the control maximum (0.998) is above the positive minimum (0.500).
+
+        `aadhaar/tools/harvest.py:507` extracts its judgments on this path, so a default refusal
+        here rejected the Supreme Court Reports on the next harvest.
+        """
         from lawcorpus.pdf import extract
 
         pdf = tmp_path / "stamped.pdf"
         pdf.write_bytes(
-            minimal_pdf([["In", f"Operative sentence {n} of the instrument.", "e"]
-                         for n in range(1, 5)])
+            minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
+                         for c in "abcd"])
         )
-        with pytest.raises(ReadingOrderError):
-            extract(pdf)
+        assert "Operative sentence" in extract(pdf)
 
-    def test_the_check_can_be_declined_by_a_caller_that_has_already_judged_it(self, tmp_path):
+    def test_a_caller_that_knows_its_publisher_can_still_ask_for_the_check(self, tmp_path):
         from lawcorpus.pdf import extract
 
         pdf = tmp_path / "stamped2.pdf"
@@ -645,7 +723,8 @@ class TestExtractVerifiesTheReadingOrder:
             minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
                          for c in "abcd"])
         )
-        assert "Operative sentence" in extract(pdf, verify_order=False)
+        with pytest.raises(ReadingOrderError):
+            extract(pdf, verify_order=True)
 
     def test_raw_mode_is_not_checked_because_the_caller_has_chosen_it(self, tmp_path):
         from lawcorpus.pdf import extract

@@ -118,6 +118,13 @@ class Corpus:
 
         `utah-id-law` learned that counts are pointers to read, never findings. A count that mixes
         in-force and struck-down text is worse than no count at all.
+
+        **Every line reported has had its digest checked**, because this reads through `text`.
+        It used to read the store directly while `text` verified, and that asymmetry was the
+        defect: a hit is an attribution of words to a citation, so a search that reports an
+        unchecked line makes exactly the claim `quote` refuses to make. The digest costs 11% over
+        reading and scanning the same bytes (2.2 MB of utah-id-law's court rules: 11 ms against
+        107 ms), so there was never a trade here to make. See @ovqrxx4g.
         """
         try:
             rx = re.compile(normalise_query(pattern), re.IGNORECASE)
@@ -131,7 +138,7 @@ class Corpus:
                 continue
             if not self.store.exists(item.item_id):
                 continue
-            for n, line in enumerate(self.store.read(item.item_id).splitlines(), start=1):
+            for n, line in enumerate(self.text(item).splitlines(), start=1):
                 if rx.search(line):
                     hits.append(Hit(item=item, line_no=n, line=line.strip()))
         return hits

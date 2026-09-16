@@ -715,6 +715,51 @@ Shared method and tooling for the identity-law corpus programme = goal:
             of them is a false opener everywhere, and the tests pin each tradition's examples
             precisely because the union makes a mistake travel.
 
+        A provision number must be followed by something; a wrapped year is followed by nothing = decision:
+          id: avcicqvb
+          why: >
+            @zr3b5ll2 rejected `singapore-id`'s `(?=—|\s)` lookahead on the reasoning that its own
+            pattern "is anchored at the start of a line where that cannot arise", and recorded as a
+            tradeoff that a line opening with a year "was already treated as structural by `\d+\.`
+            and still is, so the change adds no new false opener". **Both halves were wrong, and the
+            corpora say so.** A PDF wraps wherever the column ends, so a year does land alone at the
+            start of a line: ETA 2010 breaks "any liability under section 45E, 45F or 45N of the
+            Broadcasting Act" and leaves `1994.`; PDPA 2012 does the same with `2014.`; two sets of
+            National Registration Regulations wrap "come into operation on 1 January" and leave
+            `2017.`. The widening then made it matter more than it had, because @qd6p2f3x's order
+            check had arrived in between: one spurious 1994 among fifty-eight sections makes every
+            later section report out of order, so a correct extraction is **refused**. Reproduced
+            over `singapore-id`'s twenty stored instruments inside that repo's own body window:
+            **5 of 20 scan out of order**, of which 4 are the bare-year shape.
+            The signal is the **rest of the line**, which the number alone does not carry. A real
+            heading in this tradition is `27.—(1)` or `30. The Controller`: the stop is followed by
+            an em-dash, or by a space and the provision. A wrapped year ends its line, so the stop
+            is followed by nothing at all. Chose `\d+[A-Z]{0,2}\.(?=[ \t]*\S)` — the lookahead
+            @zr3b5ll2 rejected, in the place where its stated objection genuinely does not apply.
+            The registry already contained this idea: the `indonesian` entry's `[a-z0-9]{1,3}\.[ \t]`
+            requires the trailing space, so the common-law entry was the inconsistent one.
+            Narrowing `_STRUCTURAL` rather than the rejoiner alone is deliberate, for @zzqzaku4's
+            reason — both consumers of the idea should gain it together. It is safe for the
+            furniture rule, which admits a shape only if it carries a letter or matches
+            `_PAGE_NUMBER`, and `1994.` does neither.
+            Measured over every stored text in reach — 165 across `singapore-id`, `indonesia-id` and
+            `aadhaar`: **8 change, and every change is a genuine rejoin.** The four Singapore
+            instruments, and four in `aadhaar` where a citation's wrapped page number (`…(1948) 2
+            All ER 995, 998.`) had been read as a section heading. The 4 false refusals go.
+            **Rejected also excluding a digit after the stop**, which would have cleared the fifth
+            instrument too — a date, `2.6.2025`, opening a line in the Certification Authority
+            Regulations. The corpora refute it directly: with that rule, `PUTTASWAMY-2018`'s
+            decimal-numbered paragraphs `60.4.` and `125.2.` stop being openers and get welded into
+            the line above, which is a real heading destroyed to fix a date in front matter that
+            causes no refusal. Three more stored texts change under it, and not for the better. The
+            date stays a false opener, visibly, and `singapore-id`'s `terminator` already handles it
+            where it matters.
+            Tradeoff: a genuine heading printed as a bare number alone on a line, with an
+            unterminated line above it, is now welded. None of the 165 stored texts contains one,
+            and the direction is the one @zr3b5ll2 chose deliberately — this package would rather
+            leave a line unjoined than weld one, and here the choice is between a welded line that
+            is a year and a welded line that is a heading, so it goes to the shape that occurs.
+
     Furniture is recognised by its shape, not only by its repeated text = decision:
       id: ly7tho4y
       why: >
@@ -846,6 +891,47 @@ Shared method and tooling for the identity-law corpus programme = goal:
             over text it is about to store. Recorded rather than adopted, and it stays in that repo.
             Tradeoff: eight lines is still a number read off one scanner's emblem, and a page whose
             furniture runs deeper than that is unserved.
+          children:
+            Eight stays, and it is no longer one sample; and the dropping rules cannot bite = decision:
+              id: zga5midk
+              why: >
+                Tick 4cp4 recorded that `FURNITURE_LINES = 8` came from one Indonesian scanner's Garuda
+                and that nothing measured how deep furniture actually runs. Measured now across 24
+                PDFs from two corpora, by asking at what rank the repetition rule finds its
+                furniture at window depths of 3, 5, 8, 12 and 16.
+                The depth an ordinary document needs is **5**. `PP-40-2019` is the deepest sound
+                case; several Indonesian instruments need 4; `PERPRES-95-2018`, the Garuda document
+                the constant was read off, is served at 4 and gains exactly **one further line** at
+                a window of 12. Everything deeper than that in the sample is a watermarked India
+                Code PDF, whose glyph fragments pad the head of the page — the Constitution wants 11
+                and the 2021 Regulations 15 — and those are documents @uf4epdvm has just established
+                this package cannot store anyway. So eight sits above every sound document measured
+                and below the point where it would be chasing a watermark.
+                Kept at 8 as a default, and **not** made per-source. A per-source knob is a setting
+                every corpus must choose and none has evidence to choose with; the measurement says
+                the spread between traditions is 0 to 5, which one number covers. It is now backed
+                by sixteen sound PDFs from two corpora rather than by one emblem, which is the whole
+                of what tick 4cp4 asked for. Rejected lowering it to 5 to match the measurement exactly,
+                which would leave no margin for the next scanner and buys nothing — the rules inside
+                the window carry their own proof, so a window wider than necessary costs nothing
+                that the evidence test does not already refuse.
+                **The line-dropping rules were checked for the harm that made `_FURNITURE_PREFIX`
+                unliftable**, since dropping a whole line that carries both furniture and text is
+                the same damage by another route as rewriting one. They cannot. All three are
+                whole-line identity rules — the text rule needs the entire line repeated on 60% of
+                pages, the shape rule needs it repeated with only its numeric fields varying, and
+                `_PAGE_NUMBER` needs the line to be nothing but a number — and a line carrying
+                unique body text satisfies none of them. Measured: across the same 24 documents, two
+                drop a line with six or more words, and both are running heads with the page number
+                printed inside them (`JUSTICE K. S. PUTTASWAMY (RETD.) v. UNION OF INDIA   309`,
+                `THE GAZETTE OF INDIA : EXTRAORDINARY   [PART II—SEC. 3(i)]`), which is @lbqi475m
+                working as intended. So there is no fourth debt here, and the asymmetry with
+                `_FURNITURE_PREFIX` is principled rather than lucky: rewriting a line needs a rule
+                about *which part* of it to keep, and dropping one does not.
+                Tradeoff: the residual hole is a line consisting of furniture beside a body fragment
+                that is **purely numeric**, since the shape rule masks numeric fields. Nothing in 24
+                documents shows one, and a body fragment that is only a number carries no meaning to
+                lose.
 
     A watermarked PDF is refused, because neither rendering of it is trustworthy = decision:
       id: k76mmqlc
@@ -895,6 +981,59 @@ Shared method and tooling for the identity-law corpus programme = goal:
         Tradeoff: `extract` now runs poppler twice in layout mode, `verify_order=False` is the escape
         hatch, and a document watermarked with something poppler renders as words rather than
         fragments is invisible to this. It detects a stamp, not every way a page can be spoiled.
+      children:
+        Measured against the PDFs, the glyph-line share does not separate, so it stops refusing = decision:
+          id: uf4epdvm
+          why: >
+            @k76mmqlc was built from `aadhaar`'s prose description and shipped without ever being run
+            against a file. Tick 3azt said so. Run now over 11 India Code PDFs and 17 controls from two
+            corpora, and the result is that the **hazard is real and the detector is not**.
+            The hazard reproduces exactly as described. In the 2021 Aadhaar (Authentication and
+            Offline Verification) Regulations, `publication in the Official Gazette` occurs **once**
+            in poppler's raw-mode rendering and **zero** times in its layout-mode rendering of the
+            same 29 pages. `watermark_share` fires on that document at **0.966** against a bar of
+            0.50, which is the one thing the guard was asked to do.
+            It does not separate. `PUTTASWAMY-2018-SCR` — the Supreme Court Reports text of the 2018
+            judgment, sound, stored, and one of the documents `aadhaar` exists to read — scores
+            **0.998**, higher than every watermarked document measured, because a law report prints
+            paragraph markers `A` to `H` down the margin of every page and poppler puts each on a
+            line of its own. At the other end, two watermarked Gazette PDFs score exactly **0.500**
+            and the guard stays silent on them. Control maximum 0.998 against positive minimum 0.500:
+            there is no threshold on this statistic that admits the sound documents and refuses the
+            spoiled ones. @bxgnjdos rejected a mojibake signal for a margin of 0.195 against 0.200.
+            This margin is negative, and the same standard decides it.
+            The cost was not hypothetical either. `aadhaar/tools/harvest.py:507` extracts the
+            judgments layer on `extract`'s default layout path, so the next harvest after @k76mmqlc
+            shipped would have refused the Supreme Court Reports — a guard whose first firing is
+            wrong, which is the shape @k76mmqlc itself named and then built.
+            Three further statistics were tried and each is refuted by the same corpora, recorded so
+            they are not tried again. **The raw-to-layout drop in glyph-line share is 0.000 on every
+            India Code document**, which refutes @k76mmqlc's own claim that layout mode absorbs the
+            fragments into the text they displaced: they are equally visible in both renderings, and
+            the second poppler render buys no evidence. **One-directional bigram loss** — the
+            adjacency test in the asymmetric form @k76mmqlc did not try, counting only the in-line
+            word pairs raw mode has and layout mode lacks — puts the 2021 Regulations at 0.0028
+            against 0.0035 to 0.0121 for sound controls, so the permutation arithmetic holds in this
+            form too and the harm is 31 pairs in 10,960. **Glyph lines that
+            `strip_repeated_furniture` cannot remove** drops the Constitution from 0.998 to 0.444,
+            losing a true positive, and leaves the law report untouched at 0.998. **Isolated glyph
+            lines**, a stray letter with prose on both sides, which is the harm's own mechanism,
+            brings the positives down to 0.305 while the law report sits at 0.542.
+            Chose to stop refusing. `extract`'s `verify_order` now defaults to **False**, and the
+            second poppler render goes with it; `watermark_share` and `check_reading_order` stay
+            public, carrying these numbers in their docstrings, for a corpus that knows its publisher
+            stamps every page and wants to assert it deliberately. A measurement a caller invokes is
+            honest about being one publisher's tell; a default refusal claims to be general.
+            Rejected raising the threshold, which is arithmetically impossible — 0.998 is above 0.966.
+            Rejected a carve-out for a run of consecutive alphabet letters down a page, which is what
+            a margin column is: it is fitted to the single control document that breaks the guard,
+            which is the vocabulary-fitting @k76mmqlc already rejected wearing a different hat.
+            Rejected deleting the code, on @k76mmqlc's own precedent for the adjacency test — a
+            rejected idea recorded is cheaper than one re-derived.
+            Tradeoff, and it is the real one: the reordering is real, it is measured, and it is now
+            undetected on the default path. A detector needs **geometry** — `pdftotext -bbox` gives
+            the coordinates that tell a diagonal stamp from a margin column — and that is the
+            distinction no text-only statistic tried here could make.
 
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
@@ -1233,6 +1372,54 @@ Shared method and tooling for the identity-law corpus programme = goal:
             public class in `fetch/browser.py`, and a caller that wants both halves now matches the
             prefix `e.env.browser.` rather than one code — which is what prefixes are for, and is
             why the subject sits above the disposition.
+
+    A dotted item_id is a sibling instrument, so the store resolves it exactly and grep verifies = decision:
+      id: ovqrxx4g
+      why: >
+        `CorpusStore.resolve` globbed `{item_id}.*.gz` and took `sorted()[0]`. A glob's `*` matches
+        a dot, so `URCP-26` matched `URCP-26.1.txt.gz` as readily as its own file, and `1` sorts
+        before `t`: **the wrong instrument won**. `utah-id-law`'s court-rules layer, now on the kit
+        schema, measures 13 of 662 items resolving to a sibling — `URCP-26`→`URCP-26.1`,
+        `URCrP-9`→`URCrP-9.5`, `UCJA-3-201`→`UCJA-3-201.02`.
+        The dot is not an extension and this is not a naming accident. `URCP-26.1` is a different
+        rule from `URCP-26`, and every drafting tradition in this programme inserts provisions the
+        same way — Japan's 第六条の二, Thailand's ๓๒/๒, Indonesia's `Pasal 13A`. @kolycpun already
+        decided that this package reads a sub-number as a provision in its own right rather than
+        collapsing it onto its base, precisely so an insertion is not indistinguishable from a
+        duplicate. A filename rule that collapses them contradicts, one layer down, a decision the
+        package had already made.
+        **The severity is in the asymmetry, and the asymmetry is the real defect.** `Corpus.text`
+        checks the stored bytes against the manifest's `sha256`, so a wrong file fails closed and
+        says so. `Corpus.grep` never checked it at all, so it read the sibling's text and reported
+        the hits under the queried citation: `lawcite --grep 'domestic relations actions'` returned
+        matches attributed to `URCP-26`, whose own text does not contain the phrase, while
+        `text('URCP-26')` refused in the same corpus a moment later. A quote-or-drop tool
+        attributing a quotation to an instrument that does not carry it is the one failure this
+        package exists to prevent, and it was reached **through** the tool rather than around it.
+        One path failing closed beside a neighbour failing silently is worse than either alone,
+        because the loud path is the reason a reader trusts the quiet one.
+        Chose to resolve by **walking the directory** and requiring what follows the item_id to be
+        exactly one dotted extension — `\.[^.]+\.gz` — so a dot can never be swallowed. Iterating
+        rather than globbing also stops an item_id containing `*`, `?` or `[` from being read as a
+        pattern, which was a second latent hole in the same line; `_safe_id` guards separators and
+        leading dots and has nothing to say about glob metacharacters. A caller naming the suffix
+        already took an exact path and is unchanged.
+        Chose to make **`grep` verify**, by routing it through `Corpus.text`. The cost is one sha256
+        pass over bytes grep has already read and decompressed: measured over utah-id-law's 661
+        court rules, 2.2 MB, the digest adds 11 ms to 107 ms — **11%**, against a regex scan of the
+        same bytes at 42 ms. So the asymmetry was never a considered trade of safety for speed; it
+        was an omission, and saying that plainly is better than documenting a cost that does not
+        exist.
+        Rejected having `grep` skip an item whose digest fails and carry on. A skipped item is a
+        silent false negative in a search — the failure @7xsnhink and @zpycgven both refuse — and a
+        search that quietly omits the instrument you were looking for is worse than one that stops
+        and names it. Rejected renaming stored files to keep a dot out of them, which edits the
+        publisher's own numbering to suit a glob. Rejected verifying inside `CorpusStore.read`,
+        which does not know the manifest and should not: the store holds bytes, the manifest holds
+        the claim about them, and `Corpus` is where the two meet.
+        Tradeoff: one stale or hand-edited item now makes `--grep` refuse the whole corpus until it
+        is refetched. That is the posture `quote` has always had, and the remedy is named in the
+        message.
 
     A comparative finding is one file per spine question, and it carries the artefact list = decision:
       id: qkybp2lr
