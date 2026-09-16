@@ -840,7 +840,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
             Tradeoff: eight lines is still a number read off one scanner's emblem, and a page whose
             furniture runs deeper than that is unserved.
 
-    Layout mode is checked against raw mode, because it reorders rather than pollutes = decision:
+    A watermarked PDF is refused, because neither rendering of it is trustworthy = decision:
       id: k76mmqlc
       why: >
         `raw_pages` passes `-layout` by default, on this module's opening claim that poppler's layout
@@ -856,28 +856,38 @@ Shared method and tooling for the identity-law corpus programme = goal:
         watermark glyphs on lines of their own — 140 in one 32-page instrument — and the tokens are
         `e`, `od`, `aC`, `di` and `In`, none of which a blind filter can remove, because `In` opens a
         sentence in that very corpus. Worse, a glyph alone on a line is an unterminated line, so
-        `_rejoin_wrapped_lines` welds it into the sentence beneath.
-        Chose a **comparison rather than a threshold**. `extract` with `layout=True` now also renders
-        the document without it and compares which pairs of adjacent words each rendering contains.
-        Layout mode exists to *improve* reading order, so the rule needs no calibration: if it
-        destroys more adjacencies than it creates, it is not improving this document and the
-        extraction is refused. On an ordinary single-column or multi-column instrument both counts are
-        near zero and the check is silent; on a displaced one the losses are the displacement itself.
-        Word tokens are three characters or longer, which is what keeps a one- or two-character
-        watermark fragment from posing as the word that separates two others.
+        `_rejoin_wrapped_lines` welds it into the sentence beneath. So there is no rendering of a
+        watermarked page this package can store, and the honest act is to say so.
+        **Rejected, after building it: comparing the two renderings' word adjacencies** and refusing
+        when layout mode destroys more neighbouring pairs than it creates. It reads as the ideal
+        test — no threshold, no glyph vocabulary, and it measures the harm itself — and its own
+        arithmetic refutes it. Moving a block of text is a permutation, and a permutation breaks
+        exactly as many adjacencies as it forms: on the Official-Gazette shape the counts are 2 and
+        2, so the comparison is silent on the document it was built for. Recorded rather than
+        deleted, because it is the first thing the next reader will propose.
+        Chose instead to detect the **cause**, which is visible and has a margin: a page carrying a
+        line that is nothing but one or two Latin letters. A watermark is stamped on every page, so
+        the test is the share of pages carrying such a line rather than a count of them —
+        structural, not magnitude — and `aadhaar` measured 140 such lines against 0 in the
+        publisher's own text of the same instrument. Detection runs on the **raw-mode** rendering,
+        because that is the one where the fragments stay visible; in layout mode they have already
+        been absorbed into the text they displaced, which is the whole problem. `extract` therefore
+        renders twice in layout mode, and refuses naming both remedies: the publisher's own text
+        where one exists, or `raw_pages(layout=False)` with the glyphs handled by a caller who knows
+        what they are.
+        Restricted to **ASCII letters** deliberately. A single CJK character on a line is ordinary in
+        vertical setting, and a rule that counted it would refuse Japanese documents wholesale —
+        `clean_pages` would refuse them a moment later for a different reason, but a guard whose
+        first firing is wrong is the one @bxgnjdos says gets turned off.
         Rejected a watermark vocabulary. `aadhaar`'s `WATERMARK_TOKENS` is nine glyphs of one
         publisher's stamp, and that repo is explicit that it uses them to *measure* contamination and
         never to remove it; generalising a glyph list is the per-corpus duplication @s62c4j exists to
         end, and a list that removed `In` would delete the word. Rejected changing the default to
         `layout=False`, which trades a silent reordering for a silent weld. Rejected repairing the
         order, which would mean inventing one.
-        Tradeoff, and it is the largest in this round: `extract` now runs poppler twice, and this is
-        the one change here that could not be measured against the PDF that motivated it — the
-        comparison is derived from the failure's shape rather than fitted to it. A caller that wants
-        the old behaviour has `raw_pages` plus `clean_pages`, which is the seam that already existed
-        for `thai.py`. If it refuses a sound document, that is loud, and loud is the direction to
-        fail in.
-
+        Tradeoff: `extract` now runs poppler twice in layout mode, `verify_order=False` is the escape
+        hatch, and a document watermarked with something poppler renders as words rather than
+        fragments is invisible to this. It detects a stamp, not every way a page can be spoiled.
 
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
