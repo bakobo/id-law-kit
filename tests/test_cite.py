@@ -23,6 +23,8 @@ def item(**over):
         authority_tier="legislative",
         validity="in-force",
         validity_note="",
+        translation_status="authoritative",
+        translation_of="",
         version_id="02016R0679-20160504",
         lang="eng",
         source_url="http://publications.europa.eu/resource/celex/32016R0679",
@@ -94,6 +96,102 @@ class TestQuote:
         with pytest.raises(CorpusError) as e:
             Corpus(root).quote("x")
         assert "sha256" in str(e.value) or "hash" in str(e.value).lower()
+
+
+MYNUMBER_EN = "Article 2\nThe term 'Individual Number' as used in this Act means...\n"
+
+
+@pytest.fixture
+def translated_corpus(tmp_path):
+    """A Japanese Act with its official-but-not-authentic English rendering beside it."""
+    root = tmp_path / "corpus"
+    store = CorpusStore(root)
+    original = store.write("425AC0000000027", GDPR)
+    english = store.write("425AC0000000027-en", MYNUMBER_EN)
+    Manifest(
+        [
+            item(
+                item_id="425AC0000000027",
+                citation="Act No. 27 of 2013",
+                title="My Number Act",
+                lang="jpn",
+                sha256=original.sha256,
+                bytes=original.bytes,
+            ),
+            item(
+                item_id="425AC0000000027-en",
+                citation="Act No. 27 of 2013 (English)",
+                title="My Number Act, e-Gov translation",
+                authority_tier="commentary",
+                translation_status="official-non-authoritative",
+                translation_of="425AC0000000027",
+                sha256=english.sha256,
+                bytes=english.bytes,
+            ),
+        ]
+    ).write(root / "MANIFEST.tsv")
+    return Corpus(root)
+
+
+class TestTranslationBanner:
+    def test_a_translation_is_bannered_above_its_text(self, translated_corpus):
+        out = translated_corpus.quote("425AC0000000027-en")
+        assert out.index("TRANSLATION") < out.index("Individual Number")
+
+    def test_the_banner_names_the_original_item(self, translated_corpus):
+        assert "425AC0000000027" in translated_corpus.quote("425AC0000000027-en")
+
+    def test_the_validity_banner_still_comes_first(self, translated_corpus):
+        out = translated_corpus.quote("425AC0000000027-en")
+        assert out.startswith("[in force]")
+        assert out.index("[in force]") < out.index("TRANSLATION")
+
+    def test_an_authoritative_item_gets_no_translation_banner(self, translated_corpus):
+        assert "TRANSLATION" not in translated_corpus.quote("425AC0000000027")
+
+    def test_machine_output_is_excluded_from_an_in_force_sweep(self, tmp_path):
+        # in-force *and* unquotable: the filter is about what may be presented as current law,
+        # and a machine rendering may never be.
+        root = tmp_path / "corpus"
+        store = CorpusStore(root)
+        original = store.write("uu27-2022", GDPR)
+        machine = store.write("uu27-2022-en", MYNUMBER_EN)
+        Manifest(
+            [
+                item(item_id="uu27-2022", lang="ind", sha256=original.sha256, bytes=original.bytes),
+                item(
+                    item_id="uu27-2022-en",
+                    authority_tier="commentary",
+                    translation_status="machine",
+                    translation_of="uu27-2022",
+                    sha256=machine.sha256,
+                    bytes=machine.bytes,
+                ),
+            ]
+        ).write(root / "MANIFEST.tsv")
+        corpus = Corpus(root)
+        assert [h.item.item_id for h in corpus.grep("Individual Number")] == ["uu27-2022-en"]
+        assert corpus.grep("Individual Number", in_force_only=True) == []
+
+    def test_the_grep_line_flags_an_unquotable_translation(self, tmp_path, capsys):
+        root = tmp_path / "corpus"
+        store = CorpusStore(root)
+        machine = store.write("uu27-2022-en", MYNUMBER_EN)
+        Manifest(
+            [
+                item(
+                    item_id="uu27-2022-en",
+                    authority_tier="commentary",
+                    translation_status="machine",
+                    translation_of="uu27-2022-en-src",
+                    sha256=machine.sha256,
+                    bytes=machine.bytes,
+                ),
+                item(item_id="uu27-2022-en-src", sha256="0" * 64),
+            ]
+        ).write(root / "MANIFEST.tsv")
+        assert main(["--corpus", str(root), "--grep", "Individual Number"]) == 0
+        assert "MACHINE TRANSLATION" in capsys.readouterr().out
 
 
 class TestResolveByCitation:

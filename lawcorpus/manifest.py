@@ -19,10 +19,15 @@ from pathlib import Path
 from .errors import LawcorpusError
 from .validity import (
     AuthorityTier,
+    TranslationStatus,
+    TranslationStatusError,
     Validity,
     ValidityError,
     parse_authority_tier,
+    parse_translation_status,
     parse_validity,
+    quotable_as_current_law,
+    quotable_as_evidence,
 )
 
 COLUMNS = (
@@ -32,6 +37,8 @@ COLUMNS = (
     "authority_tier",
     "validity",
     "validity_note",
+    "translation_status",
+    "translation_of",
     "version_id",
     "lang",
     "source_url",
@@ -70,6 +77,7 @@ class ManifestItem:
     title: str
     authority_tier: AuthorityTier
     validity: Validity
+    translation_status: TranslationStatus
     version_id: str
     lang: str
     source_url: str
@@ -78,6 +86,7 @@ class ManifestItem:
     bytes: int
     sha256: str
     validity_note: str = ""
+    translation_of: str = ""
 
     def __post_init__(self):
         object.__setattr__(self, "item_id", _required_text(self.item_id, "item_id"))
@@ -89,14 +98,37 @@ class ManifestItem:
         object.__setattr__(
             self, "validity_note", "" if self.validity_note is None else str(self.validity_note).strip()
         )
+        object.__setattr__(
+            self, "translation_of", "" if self.translation_of is None else str(self.translation_of).strip()
+        )
 
         try:
             object.__setattr__(self, "validity", _coerce(self.validity, parse_validity))
             object.__setattr__(
                 self, "authority_tier", _coerce(self.authority_tier, parse_authority_tier)
             )
-        except ValidityError as e:
+            object.__setattr__(
+                self,
+                "translation_status",
+                _coerce(self.translation_status, parse_translation_status),
+            )
+        except (ValidityError, TranslationStatusError) as e:
             raise ManifestError(e.message) from e
+
+        if self.translation_status is not TranslationStatus.AUTHORITATIVE:
+            if not self.translation_of:
+                raise ManifestError(
+                    f"Item '{self.item_id}' is a '{self.translation_status.value}' rendering but "
+                    f"its translation_of is empty. Name the item_id of the text it translates, so "
+                    f"a reader who may not quote this one can reach the text that binds."
+                )
+            if self.authority_tier is not AuthorityTier.COMMENTARY:
+                raise ManifestError(
+                    f"Item '{self.item_id}' is a '{self.translation_status.value}' rendering filed "
+                    f"at authority_tier '{self.authority_tier.value}'. A translation that is not "
+                    f"authentic text cannot outrank the instrument it renders, so it belongs at "
+                    f"commentary."
+                )
 
         if self.validity is not Validity.IN_FORCE and not self.validity_note:
             raise ManifestError(
@@ -143,6 +175,29 @@ class ManifestItem:
         """The validity line that must precede any quote of this item."""
         return self.validity.banner(self.validity_note)
 
+    def banners(self) -> list:
+        """Every line that must precede a quote of this item, validity first.
+
+        A translation carries two: what happened to the instrument, and whether this is the text
+        that binds. An authentic item carries one, because a translation banner on it would be
+        noise.
+        """
+        lines = [self.banner()]
+        translation = self.translation_status.banner(self.translation_of)
+        if translation:
+            lines.append(translation)
+        return lines
+
+    def quotable_as_current_law(self) -> bool:
+        """May this item be presented as a statement of what the law is today?
+
+        Both fields must allow it. An in-force machine translation fails here, which is the point
+        of @c5jtwe4i: the instrument is current and our rendering of it is not evidence.
+        """
+        return quotable_as_current_law(self.validity) and quotable_as_evidence(
+            self.translation_status
+        )
+
     def to_row(self) -> dict:
         return {
             "item_id": self.item_id,
@@ -151,6 +206,8 @@ class ManifestItem:
             "authority_tier": self.authority_tier.value,
             "validity": self.validity.value,
             "validity_note": self.validity_note,
+            "translation_status": self.translation_status.value,
+            "translation_of": self.translation_of,
             "version_id": self.version_id,
             "lang": self.lang,
             "source_url": self.source_url,
@@ -179,7 +236,7 @@ class ManifestItem:
 
 
 def _coerce(value, parser):
-    if isinstance(value, (Validity, AuthorityTier)):
+    if isinstance(value, (Validity, AuthorityTier, TranslationStatus)):
         return value
     return parser(value)
 
@@ -229,8 +286,32 @@ class Manifest:
                 )
             seen.add(item.item_id)
 
+    def _check_translation_links(self):
+        """Every `translation_of` must reach an item in this manifest.
+
+        Checked when the manifest is written rather than when an item is constructed, because an
+        item does not know its siblings. A dangling pointer would otherwise surface years later,
+        inside a citation, which is the worst place to find it.
+        """
+        known = {item.item_id for item in self.items}
+        for item in self.items:
+            if not item.translation_of:
+                continue
+            if item.translation_of == item.item_id:
+                raise ManifestError(
+                    f"Item '{item.item_id}' names itself as the text it translates. A translation "
+                    f"and its original are two corpus items, with two source URLs and two digests."
+                )
+            if item.translation_of not in known:
+                raise ManifestError(
+                    f"Item '{item.item_id}' translates '{item.translation_of}', which is not in "
+                    f"this manifest. Harvest the original too — a translation nobody can check "
+                    f"against its source is the failure translation_status exists to surface."
+                )
+
     def write(self, path) -> None:
         self._check_unique()
+        self._check_translation_links()
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8", newline="") as fh:

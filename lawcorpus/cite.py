@@ -5,9 +5,13 @@ memory. `utah-id-law` established why: a model asked "what does the law require 
 a plausible section number with a plausible quotation, and both may be inventions. A corpus makes
 that mechanically checkable.
 
-This adds one thing to the Utah original. **A quote never prints without its validity banner.**
+This adds two things to the Utah original. **A quote never prints without its validity banner.**
 Quote-or-drop proves a passage was published; it does not prove the passage is law. Section 57 of
 the Aadhaar Act is still in the PDF UIDAI publishes, and it has not been law since 2018.
+
+**And a quote of a translation never prints without saying so.** Japan's and Korea's official
+English renderings disclaim authority in their own words, so an English quote of a Japanese Act
+carries a second banner naming the authentic text.
 
 Usage:
     lawcite --corpus corpus/ 32016R0679          # quote one item
@@ -28,7 +32,6 @@ from pathlib import Path
 from .errors import LawcorpusError
 from .manifest import Manifest, ManifestError
 from .store import CorpusStore, StoreError
-from .validity import Validity
 
 
 class CorpusError(LawcorpusError):
@@ -95,7 +98,7 @@ class Corpus:
         item = self.resolve(ref) if isinstance(ref, str) else ref
         body = self.text(item)
         header = [
-            item.banner(),
+            *item.banners(),
             f"{item.citation} — {item.title}",
             f"  authority: {item.authority_tier.value}"
             + (f"   version: {item.version_id}" if item.version_id else ""),
@@ -118,7 +121,7 @@ class Corpus:
             ) from e
         hits = []
         for item in self.manifest.by_authority():
-            if in_force_only and item.validity is not Validity.IN_FORCE:
+            if in_force_only and not item.quotable_as_current_law():
                 continue
             if not self.store.exists(item.item_id):
                 continue
@@ -137,7 +140,10 @@ def main(argv=None) -> int:
     p.add_argument(
         "--in-force-only",
         action="store_true",
-        help="skip amended, struck-down, read-down, and repealed text when searching",
+        help=(
+            "skip amended, struck-down, read-down and repealed text when searching, and skip "
+            "machine translations, which are never evidence"
+        ),
     )
     args = p.parse_args(argv)
 
@@ -149,7 +155,11 @@ def main(argv=None) -> int:
         if args.grep:
             hits = corpus.grep(args.grep, in_force_only=args.in_force_only)
             for hit in hits:
-                flag = "" if hit.item.validity is Validity.IN_FORCE else f" {hit.item.banner()}"
+                flag = (
+                    ""
+                    if hit.item.quotable_as_current_law()
+                    else " " + " ".join(hit.item.banners())
+                )
                 print(f"{hit.item.item_id}:{hit.line_no}:{flag} {hit.line}")
             print(f"\n{len(hits)} line(s) in {len({h.item.item_id for h in hits})} item(s).")
             print(

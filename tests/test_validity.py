@@ -9,11 +9,15 @@ import pytest
 
 from lawcorpus.validity import (
     AuthorityTier,
+    TranslationStatus,
+    TranslationStatusError,
     Validity,
     ValidityError,
     parse_authority_tier,
+    parse_translation_status,
     parse_validity,
     quotable_as_current_law,
+    quotable_as_evidence,
 )
 
 
@@ -99,6 +103,86 @@ class TestQuotableAsCurrentLaw:
     def test_accepts_a_raw_token_too(self):
         assert quotable_as_current_law("in-force") is True
         assert quotable_as_current_law("struck-down") is False
+
+
+class TestParseTranslationStatus:
+    def test_accepts_every_member_of_the_vocabulary(self):
+        for token in ("authoritative", "official-non-authoritative", "unofficial", "machine"):
+            assert parse_translation_status(token).value == token
+
+    def test_is_case_and_whitespace_insensitive(self):
+        assert parse_translation_status(" Machine ") is TranslationStatus.MACHINE
+
+    def test_rejects_an_unknown_token(self):
+        with pytest.raises(TranslationStatusError) as e:
+            parse_translation_status("pretty-good")
+        assert "pretty-good" in str(e.value)
+        assert "official-non-authoritative" in str(e.value)  # the error lists the legal values
+
+    def test_rejects_an_empty_value_rather_than_defaulting_to_authoritative(self):
+        # Defaulting would make every EU item silently right and every Asian item silently wrong.
+        with pytest.raises(TranslationStatusError):
+            parse_translation_status("")
+
+    def test_rejects_none(self):
+        with pytest.raises(TranslationStatusError):
+            parse_translation_status(None)
+
+    def test_its_error_code_is_its_own(self):
+        # A caller branching on translation provenance must not have to catch a validity error.
+        with pytest.raises(TranslationStatusError) as e:
+            parse_translation_status("")
+        assert e.value.code != ValidityError.code
+        assert e.value.transient is False
+
+
+class TestQuotableAsEvidence:
+    @pytest.mark.parametrize(
+        "status",
+        [
+            TranslationStatus.AUTHORITATIVE,
+            TranslationStatus.OFFICIAL_NON_AUTHORITATIVE,
+            TranslationStatus.UNOFFICIAL,
+        ],
+    )
+    def test_human_translations_are_evidence_even_when_not_authentic(self, status):
+        # Japan's and Korea's official translations disclaim authority; they remain quotable, with
+        # a banner, because a human rendered them and the original is named.
+        assert quotable_as_evidence(status) is True
+
+    def test_machine_translation_is_never_evidence(self):
+        assert quotable_as_evidence(TranslationStatus.MACHINE) is False
+
+    def test_accepts_a_raw_token_too(self):
+        assert quotable_as_evidence("machine") is False
+        assert quotable_as_evidence("authoritative") is True
+
+
+class TestTranslationBanner:
+    def test_authoritative_text_carries_no_translation_banner(self):
+        # The EU's 24 language versions are each authentic. A banner there would be noise, and
+        # noise is what stops banners being read.
+        assert TranslationStatus.AUTHORITATIVE.banner() == ""
+
+    def test_an_official_translation_says_the_original_governs(self):
+        banner = TranslationStatus.OFFICIAL_NON_AUTHORITATIVE.banner()
+        assert "TRANSLATION" in banner
+        assert "original governs" in banner
+
+    def test_an_unofficial_translation_says_who_did_not_publish_it(self):
+        assert "UNOFFICIAL" in TranslationStatus.UNOFFICIAL.banner()
+
+    def test_the_machine_banner_forbids_quotation_outright(self):
+        banner = TranslationStatus.MACHINE.banner()
+        assert "MACHINE TRANSLATION" in banner
+        assert "NEVER evidence" in banner
+
+    def test_the_banner_names_the_original_item(self):
+        banner = TranslationStatus.UNOFFICIAL.banner("425AC0000000027")
+        assert "425AC0000000027" in banner
+
+    def test_an_authoritative_item_stays_quiet_even_with_an_original_named(self):
+        assert TranslationStatus.AUTHORITATIVE.banner("425AC0000000027") == ""
 
 
 class TestBanner:

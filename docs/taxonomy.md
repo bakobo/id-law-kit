@@ -1,10 +1,10 @@
 # Taxonomy — the vocabularies these corpora share
 
-Three vocabularies, so findings from five jurisdictions can be compared instead of merely collected:
-**what kind of duty** a provision imposes, **how binding** the text is, and **whether it is still
-law**.
+Four vocabularies, so findings from ten jurisdictions can be compared instead of merely collected:
+**what kind of duty** a provision imposes, **how binding** the text is, **whether it is still law**,
+and **whether it is the text that binds**.
 
-The last two are machine-readable fields on every corpus item (`lawcorpus/validity.py`); the first
+The last three are machine-readable fields on every corpus item (`lawcorpus/validity.py`); the first
 is analytical and lives in prose.
 
 ---
@@ -145,3 +145,47 @@ Two ways to get the grain right, in order of preference:
 It cannot be derived mechanically for most items, so it lags. **A wrong `validity` is more dangerous
 than an absent one** — which is why it is required with no default rather than an optional
 annotation: absence stops the harvest, and a guess would not.
+
+---
+
+## 4. The translation vocabulary
+
+The field that closes the hole in quote-or-drop one layer down. **Required, no default.**
+
+Quote-or-drop over a translation proves that a passage was *translated*. It does not prove that the
+passage is the text that binds. Japan's e-Gov translation service says so in its own words —
+「法令翻訳は、正文ではなく…法的効力を有するのは日本語の法令自体であり、翻訳はあくまでその理解を助けるための参考資料です」, where
+正文 is the technical term for authentic text — and Korea's KLRI says its translations are "neither
+official nor legally effective". The English PIPA on offer there is a 2025-10-02 version against a
+Korean current text of 2026-09-11, so the staleness is dated rather than hypothetical.
+
+| `translation_status` | Meaning | Quotable? |
+|---|---|---|
+| `authoritative` | This *is* authentic text — the EU's 24 language versions, a bilingual statute | **Yes**, and no banner |
+| `official-non-authoritative` | Published by the state, disclaiming legal effect — Japan's e-Gov, Korea's KLRI | Yes, bannered |
+| `unofficial` | A third party's rendering | Yes, bannered |
+| `machine` | Machine output | **No** — `quotable_as_current_law()` is False |
+
+`machine` is unquotable because the failure mode differs in kind: an official translation is wrong at
+the margin and its banner says so, while machine output can invert a negation with no signal at all.
+It is kept in the corpus as a reading aid for deciding *which* provision to have rendered properly.
+
+### A translation is a separate item, linked to its original
+
+`translation_of` names the `item_id` of the text it renders. It is mandatory whenever
+`translation_status` is not `authoritative` — the same rule, for the same reason, as
+`validity_note` — and `Manifest.write()` refuses a pointer that does not resolve. A translation is
+filed at `authority_tier: commentary`, because a rendering that is not authentic text cannot outrank
+the instrument it renders.
+
+### The hazard is provenance, not language
+
+**Singapore is the case this field does not cover.** Its legislation is natively English, so nothing
+is translated — and Singapore Statutes Online clause (8) nevertheless declares its own text
+**unofficial** and disapplies Interpretation Act s48, so the electronic version is not the one a
+court reads. That is an `authority_tier` matter. Recording it as `translation_status` would be a
+category error, and would leave the corpus claiming a translation problem where there is none.
+
+Conversely an English-language corpus is not an authoritative one merely by being in English, and a
+non-English item is not a translation merely by being foreign: the EU's 24 language versions are all
+`authoritative`, and `lang` says nothing about which.

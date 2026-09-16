@@ -23,6 +23,8 @@ def an_item(**over):
         authority_tier="legislative",
         validity="in-force",
         validity_note="",
+        translation_status="authoritative",
+        translation_of="",
         version_id="",
         lang="eng",
         source_url="http://example.invalid/x",

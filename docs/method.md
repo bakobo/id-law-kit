@@ -35,6 +35,18 @@ So every corpus item carries `validity` and `authority_tier`, both **required wi
 fetcher refuses to write, the citer refuses to print silently — rather than in a document someone
 has to remember. See [`taxonomy.md`](taxonomy.md).
 
+### And a second hole, one layer down, wherever the text is not in your language
+
+Quote-or-drop over a *translation* proves only that a passage was translated. Japan's e-Gov service
+and Korea's KLRI both publish official English renderings and both disclaim legal effect in their own
+words; KLRI's English PIPA is eleven months behind the Korean text it renders.
+
+So every item also carries `translation_status`, required with no default, enforced at the same two
+chokepoints, and a translation is a separate corpus item linked to its original by `translation_of`.
+Machine translation is quotable by nothing: it is a reading aid for deciding which provision to have
+rendered properly. See [`taxonomy.md`](taxonomy.md) §4 — including Singapore, which is natively
+English and *still* not authoritative, for a reason this field deliberately does not cover.
+
 ---
 
 ## 2. Verify the work-list before you harvest it
