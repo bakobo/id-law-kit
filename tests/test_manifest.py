@@ -436,7 +436,7 @@ class TestMarks:
         assert marked.marks() == marked.banners()
 
     def test_an_in_force_official_translation_still_says_it_is_not_the_text_that_binds(self):
-        # tick ~4j4t: Thailand's official English and Singapore's SSO disclaimer are both on
+        # Thailand's official English and Singapore's SSO disclaimer are both on
         # in-force items, so both were suppressed in search output exactly as a qualifier was.
         marked = an_item(
             translation_status="official-non-authoritative",

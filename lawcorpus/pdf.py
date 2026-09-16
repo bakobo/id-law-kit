@@ -38,6 +38,7 @@ EDGE_LINES = 3
 # carry their own evidence and do not need position to supply it, which is what lets them see past
 # a scanner's emblem: `indonesia-id` measured Perpres 95/2018 OCR'ing the Garuda into three to six
 # lines of noise, landing the real running head at line index 5 to 7 and outside a window of 3.
+# ~4cp4
 FURNITURE_LINES = 8
 # A line must appear at the same edge on at least this fraction of pages to count as furniture.
 FURNITURE_THRESHOLD = 0.6
@@ -76,7 +77,7 @@ STRUCTURAL_OPENERS = {
     "common-law": r"""
         §                      # section sign
       | \([a-zA-Z0-9]{1,4}\)        # (a) (1) (iii) (A)
-      | \d+[A-Z]{0,2}\.             # 1.  23A.  16O.  — see @zr3b5ll2
+      | \d+[A-Z]{0,2}\.             # 1.  23A.  16O.  — see @zr3b5ll2, and ~4a6m
       | ARTICLE\b | CHAPTER\b | DIVISION\b | TITLE\b
       | Note:
       | [A-Z][A-Z ’'\-]{6,}\s*$   # an all-caps heading line
@@ -418,7 +419,7 @@ def raw_pages(path, layout: bool = True) -> list:
 # that counted it would refuse Japanese documents wholesale. See @k76mmqlc.
 _GLYPH_LINE = re.compile(r"^[A-Za-z]{1,2}$")
 # A watermark is stamped on every page, so the test is the share of pages carrying a glyph line
-# rather than how many there are — structural, not magnitude.
+# rather than how many there are — structural, not magnitude. ~3azt
 WATERMARK_PAGE_SHARE = 0.5
 
 

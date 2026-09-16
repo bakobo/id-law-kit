@@ -260,7 +260,7 @@ class ManifestItem:
         force]", which is worth a line above a whole quote and is noise on every line of a search.
         Everything after it is about this *copy* — that it is a rendering rather than the text that
         binds, that it is an excerpt, that it is our own OCR — and that is as true of an in-force
-        item as of a repealed one. See @fyh6u2nf and tick ~4j4t.
+        item as of a repealed one. See @fyh6u2nf.
         """
         if not self.quotable_as_current_law():
             return self.banners()

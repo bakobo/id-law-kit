@@ -241,7 +241,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
                 this copy rather than about the law — which is @ublm5oib's own reading of the field.
                 So `ManifestItem.marks()` carries every banner when the item may not be quoted as
                 current law, and everything below the validity line always — which is the
-                translation banner as well as the qualifier, because tick ~4j4t names both and they
+                translation banner as well as the qualifier, because the same suppression hid both and they
                 are the same kind of thing. Singapore's SSO declares its own text unofficial and
                 Thailand's official English disclaims authority; both items are in force, so both
                 banners were suppressed in search output exactly as the qualifier was. The cut is
