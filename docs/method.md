@@ -222,19 +222,26 @@ Rules that follow:
 
 - **Some characters must survive normalisation and still be searchable, so the query moves instead.**
   Full-width enumerators like `（一）` address provisions, so stripping them breaks citation; U+318D
-  is visible, so it stays. `lawcorpus.normalise.normalise_query` folds the *pattern* the same way the
-  text was folded and expands a list separator to match all five of its spellings, which is why
-  `lawcite --grep` finds text no literal `rg` would. For comparing two strings rather than searching
-  — the expected-phrase check of §2 — use `search_key`, which also folds Thai and Arabic numerals
-  together and collapses the line wrapping that made that check abort on a *correct* Thai document.
+  is visible, so it stays; and a numeral system is authentic text, so Thai statutes keep their Thai
+  digits. `lawcorpus.normalise.normalise_query` folds the *pattern* the same way the text was folded,
+  expands a list separator to match all five of its spellings, and **expands a digit to match every
+  numeral system** — so `มาตรา 7` finds `มาตรา ๗`, where before it returned a zero that read as a
+  finding. That is why `lawcite --grep` finds text no literal `rg` would. For comparing two strings
+  rather than searching — the expected-phrase check of §2 — use `search_key`, which reads the same
+  numeral table and collapses the line wrapping that made that check abort on a *correct* Thai
+  document.
 - **Use `thai.py` for Thai PDFs, and let it refuse.** `pdftotext` drops U+0E33 `ำ` from Royal
   Gazette PDFs **100% of the time**, so `กำหนด` — "to prescribe" — occurs 87 times in the PDPA and
   matches zero. It is producer-dependent, so a spot check on a Word-produced document finds nothing
   wrong. Other Gazette PDFs carry a subset font with no ToUnicode CMap and extract to non-empty,
   plausibly-Thai-looking noise, with the running header extracting *correctly* while the body does
-  not. So a page whose Thai character ratio collapses, and a document with no `ำ` at all, are
-  refused and routed to OCR. Never reach for NFKC on Thai; the Thai API text is the corpus and the
-  Gazette PDF is provenance.
+  not. A third mode passes both of those: the DOPA manual keeps its `ำ` and its character ratio and
+  loses every tone mark, so it reads as sound Thai and matches nothing a reader would type. So a
+  page whose Thai character ratio collapses *and whose Latin does not read as words*, a document
+  with no `ำ` at all, and a document with no tone mark at all, are refused and routed to OCR. The
+  Latin test is there because the ratio alone refused four sound bibliography pages for every real
+  failure it caught, and a gate that refuses good documents gets turned off. Never reach for NFKC on
+  Thai; the Thai API text is the corpus and the Gazette PDF is provenance.
 
 - **Preserve structure.** "Article 5(1)(a)" must be locatable in the stored text, or quote-or-drop
   degrades into "the phrase appears somewhere in a 90,000-word file."

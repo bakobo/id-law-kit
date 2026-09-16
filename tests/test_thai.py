@@ -16,6 +16,7 @@ from lawcorpus.thai import (
     ThaiMojibakeError,
     ThaiSaraAmError,
     ThaiTextError,
+    ThaiToneMarkError,
     compose_sara_am,
     extract_thai,
     repair_marks,
@@ -23,6 +24,7 @@ from lawcorpus.thai import (
     strip_watermark_fragments,
     thai_ratio,
     thai_search_key,
+    word_likeness,
 )
 
 # A page of real-shaped Thai statutory prose.
@@ -205,3 +207,101 @@ class TestExtractThaiWithPoppler:
         assert thai._poppler_pages.__module__ == thai.__name__
         with pytest.raises(pdf.PdfError):
             extract_thai(tmp_path / "nope.pdf")
+
+
+# A bibliography page from a Thai instrument: Latin citations inside a Thai document. Four of the
+# five documents `thailand-id` had refused looked like this, and all four were sound.
+BIBLIOGRAPHY_PAGE = (
+    "บรรณานุกรมและเอกสารอ้างอิงประกอบ\n"
+    "Bygrave, Lee A. Data Privacy Law: An International Perspective. Oxford University Press, 2014.\n"
+    "Greenleaf, Graham. Asian Data Privacy Laws: Trade and Human Rights Perspectives. Oxford, 2014.\n"
+)
+
+
+class TestWordLikeness:
+    """@szp4xt3n — the share of a page's Latin runs that read as words. Three letters or more with
+    a vowel, which is crude on purpose: prose and the residue of a broken encoding differ by an
+    order of magnitude rather than at the margin."""
+
+    def test_real_citations_score_in_the_band_thailand_id_measured(self):
+        share, runs = word_likeness(BIBLIOGRAPHY_PAGE)
+        assert runs >= 8
+        assert share >= 0.9
+
+    def test_mojibake_scores_an_order_of_magnitude_lower(self):
+        share, runs = word_likeness(MOJIBAKE_PAGE)
+        assert runs >= 8
+        assert share < 0.5
+
+    def test_a_page_with_no_latin_at_all_scores_zero_and_says_so(self):
+        assert word_likeness(GOOD_PAGE) == (0.0, 0)
+
+    def test_a_run_of_two_letters_counts_as_a_run_but_never_as_a_word(self):
+        assert word_likeness("by an") == (0.0, 2)
+
+    def test_a_vowelless_run_is_not_a_word_however_long(self):
+        assert word_likeness("TCPDF") == (0.0, 1)
+
+
+class TestTheMojibakeGateSparesAMixedScriptPage:
+    """@szp4xt3n — a gate that refuses good documents gets turned off, which is worse than no
+    gate. Five documents were refused in `thailand-id` and four of them were sound."""
+
+    def test_a_bibliography_page_is_no_longer_refused(self):
+        out = extract_thai("th.pdf", reader=lambda path: [GOOD_PAGE, BIBLIOGRAPHY_PAGE])
+        assert "Bygrave" in out
+        assert "กำหนด" in out
+
+    def test_genuine_mojibake_is_still_refused(self):
+        with pytest.raises(ThaiMojibakeError):
+            extract_thai("bad.pdf", reader=lambda path: [MOJIBAKE_PAGE])
+
+    def test_the_refusal_names_the_word_score_it_judged_on(self):
+        with pytest.raises(ThaiMojibakeError) as e:
+            extract_thai("bad.pdf", reader=lambda path: [MOJIBAKE_PAGE])
+        assert "read as words" in str(e.value)
+
+    def test_too_few_latin_runs_to_judge_stays_fail_closed(self):
+        # Below the floor the score is noise, so the page is refused as it was before.
+        page = "มาตรา ๙ ให้คณะ BCDFGHJKLMNP QRSTVWXZBCDF\n"
+        with pytest.raises(ThaiMojibakeError) as e:
+            extract_thai("bad.pdf", reader=lambda path: [page])
+        assert "too few" in str(e.value)
+
+
+class TestTheToneMarkGate:
+    """@h4srdl2g — the DOPA manual keeps its sara am and loses every tone mark, so it passes both
+    existing gates: `สราง` for `สร้าง`, `ใหม` for `ใหม่`, `พิสูจน` for `พิสูจน์`."""
+
+    def test_refuses_a_thai_document_with_no_tone_mark_at_all(self):
+        stripped = (GOOD_PAGE * 6).translate({ord(ch): None for ch in "่้๊๋"})
+        with pytest.raises(ThaiToneMarkError) as e:
+            extract_thai("dopa.pdf", reader=lambda path: [stripped])
+        assert "U+0E48" in str(e.value)
+
+    def test_it_names_what_failed_rather_than_that_something_did(self):
+        stripped = (GOOD_PAGE * 6).translate({ord(ch): None for ch in "่้๊๋"})
+        with pytest.raises(ThaiToneMarkError) as e:
+            extract_thai("dopa.pdf", reader=lambda path: [stripped])
+        assert "tone mark" in str(e.value)
+        assert "OCR" in str(e.value)
+
+    def test_the_document_that_passes_the_other_two_gates_is_caught_by_this_one(self):
+        stripped = (GOOD_PAGE * 6).translate({ord(ch): None for ch in "่้๊๋"})
+        assert "ำ" in stripped  # the sara-am gate is satisfied
+        assert thai_ratio(stripped) > 0.9  # and so is the mojibake gate
+
+    def test_a_sound_document_passes(self):
+        out = extract_thai("gazette.pdf", reader=lambda path: [GOOD_PAGE * 6])
+        assert "คุ้มครอง" in out
+
+    def test_a_short_thai_document_is_not_refused_for_want_of_a_tone_mark(self):
+        # Below the floor, none is a document that happens not to need one.
+        out = extract_thai("short.pdf", reader=lambda path: ["มาตรา ๙ ให้คณะกรรมการ\n"])
+        assert "มาตรา" in out
+
+    def test_it_joins_the_family_a_caller_already_catches(self):
+        assert ThaiToneMarkError.code.startswith("e.input.format.thai-text.")
+        stripped = (GOOD_PAGE * 6).translate({ord(ch): None for ch in "่้๊๋"})
+        with pytest.raises(ThaiTextError):
+            extract_thai("dopa.pdf", reader=lambda path: [stripped])

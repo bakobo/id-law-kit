@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import LawcorpusError
-from .manifest import COLUMNS, LEGACY_COLUMNS, Manifest, ManifestItem
+from .manifest import LEGACY_COLUMNS, REQUIRED_COLUMNS, Manifest, ManifestItem
 from .validity import TranslationStatus, parse_translation_status
 
 
@@ -83,7 +83,7 @@ def migrate(path, *, translation_status: str, retier: dict = None, dry_run: bool
         raise MigrationError(f"No manifest at {path}, so there is nothing to migrate.")
 
     header = _header(path)
-    if header == list(COLUMNS):
+    if set(header) >= set(REQUIRED_COLUMNS):
         raise MigrationError(
             f"{path} is already on the current schema. Migrating it again would rewrite a "
             f"translation_status somebody has curated since."

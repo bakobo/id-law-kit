@@ -10,9 +10,11 @@ import pytest
 from lawcorpus.errors import LawcorpusError
 from lawcorpus.manifest import (
     COLUMNS,
+    LEGACY_COLUMNS,
     Manifest,
     ManifestError,
     ManifestItem,
+    StaleSchemaError,
 )
 from lawcorpus.validity import AuthorityTier, TranslationStatus, Validity
 
@@ -341,3 +343,80 @@ class TestManifestFile:
         m = Manifest([an_item(), an_item(item_id="x")])
         assert len(m) == 2
         assert {i.item_id for i in m} == {"32016R0679", "x"}
+
+
+class TestTheQuotationQualifier:
+    """@ublm5oib — japan-id writes 「（抄）」 into `citation` and singapore-id writes SSO clause (8)
+    into it, because `citation` was the only field that travels with a quotation."""
+
+    def test_it_defaults_to_nothing_and_prints_nothing(self):
+        item = an_item()
+        assert item.quotation_qualifier == ""
+        assert item.banners() == [item.banner()]
+
+    def test_a_qualifier_prints_above_the_quote_with_the_other_banners(self):
+        item = an_item(quotation_qualifier="（抄）— e-Gov serves this instrument in part.")
+        assert item.banners()[-1] == "[（抄）— e-Gov serves this instrument in part.]"
+        assert len(item.banners()) == 2
+
+    def test_singapores_disclaimer_and_japans_excerpt_mark_both_fit(self):
+        sso = an_item(
+            quotation_qualifier=(
+                "SSO clause (8): this is an unofficial version and Interpretation Act 1965 s48 "
+                "does not apply to it."
+            )
+        )
+        assert "Interpretation Act 1965 s48" in "\n".join(sso.banners())
+
+    def test_it_is_stripped_like_every_other_free_text_field(self):
+        assert an_item(quotation_qualifier="  （抄）  ").quotation_qualifier == "（抄）"
+
+    def test_none_reads_as_no_qualifier(self):
+        assert an_item(quotation_qualifier=None).quotation_qualifier == ""
+
+    def test_it_survives_a_write_and_a_read(self, tmp_path):
+        path = tmp_path / "MANIFEST.tsv"
+        Manifest([an_item(quotation_qualifier="（抄）")]).write(path)
+        assert Manifest.read(path).items[0].quotation_qualifier == "（抄）"
+
+    def test_the_column_is_in_the_schema(self):
+        assert "quotation_qualifier" in COLUMNS
+
+
+class TestAnAdditiveColumnNeedsNoMigration:
+    """@ublm5oib — a required column with no default is what broke seven manifests across four
+    repos (@oa2bvav5). This one is optional, so absence means 'the source did not qualify it'."""
+
+    def test_a_manifest_written_before_the_column_still_reads(self, tmp_path):
+        path = tmp_path / "MANIFEST.tsv"
+        previous = [c for c in COLUMNS if c != "quotation_qualifier"]
+        row = an_item().to_row()
+        path.write_text(
+            "\t".join(previous) + "\n" + "\t".join(row[c] for c in previous) + "\n",
+            encoding="utf-8",
+        )
+        assert Manifest.read(path).items[0].quotation_qualifier == ""
+
+    def test_and_gains_the_column_when_it_is_next_written(self, tmp_path):
+        path = tmp_path / "MANIFEST.tsv"
+        Manifest([an_item()]).write(path)
+        assert path.read_text(encoding="utf-8").splitlines()[0].endswith("\tsha256")
+        assert "quotation_qualifier" in path.read_text(encoding="utf-8").splitlines()[0]
+
+    def test_a_row_missing_a_required_column_is_still_refused(self):
+        row = an_item().to_row()
+        del row["citation"]
+        with pytest.raises(ManifestError) as e:
+            ManifestItem.from_row(row)
+        assert "citation" in str(e.value)
+
+    def test_the_legacy_header_is_still_recognised_and_still_names_the_migration(self, tmp_path):
+        # LEGACY_COLUMNS is frozen as a literal; derived from COLUMNS it would have grown this
+        # column and stopped matching the seven files @oa2bvav5 shipped the migration for.
+        assert "quotation_qualifier" not in LEGACY_COLUMNS
+        assert "translation_status" not in LEGACY_COLUMNS
+        path = tmp_path / "MANIFEST.tsv"
+        path.write_text("\t".join(LEGACY_COLUMNS) + "\n", encoding="utf-8")
+        with pytest.raises(StaleSchemaError) as e:
+            Manifest.read(path)
+        assert "lawcorpus.migrate" in str(e.value)

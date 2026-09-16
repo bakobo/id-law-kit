@@ -180,6 +180,49 @@ Shared method and tooling for the identity-law corpus programme = goal:
             broken in each repo until its owner runs one command, which is the price of not choosing
             the value on their behalf.
 
+        A qualifier that must travel with every quotation gets a column, defaulted = decision:
+          id: ublm5oib
+          why: >
+            Tick 7kgs deferred this pending a second source, and the second source arrived a day
+            later with a different qualifier, which is the finding. `japan-id` writes 「（抄）」 into
+            `citation` because e-Gov serves some instruments as `<MainProvision Extract="true">` and
+            the partiality has to reach anyone who quotes one. `singapore-id` writes SSO clause (8)
+            into `citation` because SSO declares its own text unofficial and disapplies Interpretation
+            Act s48 to anything copied from it, and that has to reach the same reader. Two repos,
+            two different facts, one workaround: both concluded that `citation` is the only field
+            that travels with a quotation, and both said so in their own `this.i` — `singapore-id`'s
+            @dt24v5pp ends "worth raising with `id-law-kit` rather than solving twice."
+            The second source therefore refutes the shape tick 7kgs was holding out for. A
+            partial-instrument flag would carry Japan's case and not Singapore's, and the tick's own
+            objection to it stands — a boolean does not say what is missing, and a field naming the
+            omitted provisions duplicates what the oracle computes. What the two cases share is not
+            partiality; it is that **the source qualifies its own text in a way a quotation must
+            carry**. So the field is `quotation_qualifier`, free text, and `banners()` prints it
+            above every quote beside the validity and translation lines.
+            Free text rather than a vocabulary, which is the opposite of what `validity`,
+            `authority_tier` and `translation_status` chose, and the difference is deliberate. Those
+            three are read by code — they decide `quotable_as_current_law`, they sort by tier, they
+            gate a sweep — so an unrecognised token must be refused. This one is read by a person:
+            a disclaimer and an excerpt mark have nothing in common to enumerate, and a closed
+            vocabulary would have had to be guessed at from one source and then broken by the second,
+            which is exactly what just happened to the flag. Nothing branches on its value.
+            **Optional, with a safe default, and therefore no migration** — which is the whole reason
+            it can land at all. @elsvh64d's cost line ("a fourth hand-curated field on every item in
+            five corpora that have no translation problem at all") is the objection, and it only
+            applies to a *required* field. Absence here is not a guess about the world the way an
+            absent `translation_status` was: an item with no qualifier is an item whose source did
+            not qualify it, which is the ordinary case and the honest reading. So `from_row` fills a
+            `DEFAULTED_COLUMNS` member that is not present, an existing fifteen-column manifest reads
+            unchanged, and the column appears in a file the next time its harvester writes one.
+            `LEGACY_COLUMNS` is frozen as a literal in the same change, because it had been derived
+            from `COLUMNS` and would otherwise have grown a column it never had — which is how
+            @oa2bvav5's seven broken manifests would have become eight.
+            Tradeoff: nothing mechanical can filter partial items out of a sweep, which is the cost
+            tick 7kgs named and this does not pay off. A qualifier is prose, so an agent reading the
+            manifest programmatically still cannot classify one — it can only see that there is a
+            qualifier and print it, which is what a banner is for. The vocabulary question is
+            reopened by a consumer that needs to *filter*, not by a third qualifier.
+
     Layout-only characters are normalised out of stored text = decision:
       id: f5mvj6
       why: >
@@ -263,6 +306,56 @@ Shared method and tooling for the identity-law corpus programme = goal:
                     genuine word separator, so 「個人情報」 would hit a line reading 「個人 情報」. That
                     is a false positive, visible the moment the hit is read, and what it replaces is
                     a zero that reads as a finding.
+
+                A query digit reaches every numeral system, which needs the regex parsed = decision:
+                  id: 4zotolb5
+                  why: >
+                    Reverses @liv2lsxs's "the fold only ever rewrites non-ASCII input, and that
+                    asymmetry is deliberate". `thailand-id` found what the asymmetry costs:
+                    `search_key` folds Thai digits onto Arabic and `normalise_query` does not, so
+                    `lawcite --grep 'มาตรา 7'` returns zero against a corpus holding `มาตรา ๗` while
+                    `มาตรา ๗` finds it. Two functions in one module disagreed about the same
+                    question, and the one a user reaches through the CLI held the wrong answer. That
+                    is @f5mvj6's silent false negative produced by the tool built to prevent it, so
+                    the asymmetry cannot stand — the stored text keeps the source's own digits
+                    (@amdvdsah: they are authentic, not layout), which leaves the query side as the
+                    only place the two systems can meet.
+                    The rejection @liv2lsxs recorded was not wrong about its reason. Expanding a bare
+                    ASCII digit really does break `[0-9]`, and it breaks `\d{1,3}` and `\1` too. What
+                    it got wrong was treating "parsing a regex costs more than the trap does" as
+                    settled by a separator trap that nobody had hit, when the trap actually hit was a
+                    digit — and a digit is not an occasional character in a legal query, it is what a
+                    provision is addressed by. So the price is now worth paying: `normalise_query`
+                    tracks three states a character can sit in — escaped, inside a character class,
+                    inside a `{m,n}` quantifier — and rewrites nothing in the last two. A digit
+                    outside them becomes a class holding that digit's spelling in every system;
+                    inside a class it is *added to* the class, and an ASCII digit range gains the
+                    parallel range in each system, so `[0-9]` becomes `[0-9๐-๙]` rather than the
+                    nested rubble @liv2lsxs feared.
+                    Two further things fall out of the scanner rather than being aimed at, and both
+                    are fixes. @liv2lsxs's documented hole — a separator inside a user-written
+                    character class producing a nested class — is closed, because a separator in a
+                    class now contributes its five spellings as members. And @ux7izhdj's optional
+                    space is no longer inserted inside a class, where `[個人]` had been rewritten to
+                    something that is not a character class at all.
+                    The systems are declared as data, `NUMERAL_SYSTEMS`, which both functions consume
+                    — an asymmetry between them is now a thing that cannot be written rather than a
+                    thing a reviewer must notice, and `tests/test_normalise.py` asserts the agreement
+                    per system with a positive control in each script. Only systems the programme's
+                    corpora actually use are listed, which today is Thai. Rejected enumerating every
+                    Unicode decimal-digit script: a sixty-character class per digit buys reach into
+                    corpora nobody holds and correlates nothing, and the list is where a future
+                    script is added in one line.
+                    Rejected folding CJK numerals here, which §8.3 names as a real trap (`第1条` finds
+                    0 where `第五十七条` finds 19). `kanji_number` already reads them and the fold is
+                    tempting, but `第六条` is not `第6条` spelled differently the way `๗` is `7` — the
+                    kanji form is positional (十, 百) and reversing it into a query means generating
+                    every spelling of a number rather than translating ten characters. It is a
+                    separate decision with a separate risk, and bundling it into this one would hide
+                    it. Tradeoff accepted: `normalise_query` now understands enough regex syntax to
+                    be wrong about a regex, where before it could only be wrong about a character;
+                    the states it tracks are the three that carry digits, and a `{` that is not a
+                    quantifier suppresses the fold until the next `}` rather than corrupting it.
 
     An extraction is refused unless it matches a declared structure = decision:
       id: zpycgven
@@ -362,6 +455,133 @@ Shared method and tooling for the identity-law corpus programme = goal:
             more public name to keep stable, against a caller otherwise reaching into a private one,
             which is the same dependency with none of the obligation admitted.
 
+        A sub-numbered provision is a value, not a number it collapses onto = decision:
+          id: kolycpun
+          why: >
+            `scan` read `มาตรา ๓๒/๒` as 32, `第六条の二` as 6, `제24조의2` as 24 and `Pasal 13A` as 13 —
+            four jurisdictions, one behaviour, and it was written down as intended rather than
+            noticed as a defect. Inserted provisions are how every one of these systems amends a
+            statute without renumbering it, so the collapse is not an edge case; it is the ordinary
+            shape of an amended act. What it costs is an oracle that cannot tell an inserted section
+            from a duplicate heading, so a declaration of `32` is satisfied by a document that
+            carries only `32/2` — the oracle silently accepting a short extraction, which is the one
+            thing @zpycgven exists to stop.
+            Chose a value type, `Provision`, over the two alternatives that keep `scan` returning
+            plain integers. A decimal (32.2) collides — 32/2 and 32/20 are not 32.2 and 32.20 — and a
+            string loses ordering, where the whole point of the sequence is that 6/2 sorts before
+            6/10 and both sort between 6 and 7. `Provision` carries the base and a tuple of
+            sub-tokens, and **compares equal to its own base integer when it has no sub-number**, so
+            an `Expectation` declared over ordinary integers — which is every consumer today, and
+            what `korean_gapless` derives — keeps working untouched. Hashing agrees with that
+            equality, because the check is a set membership test and a type that is equal but hashes
+            differently fails it silently.
+            Sub-numbering is declared per numeral system rather than built into `scan`, so Thai's
+            `/`, Japanese's `の` and common-law's bare letter suffix are three table entries and a
+            fourth is a line. A letter suffix sorts after the bare number and before the next one,
+            which is what `23 < 23A < 23B < 24` requires and what a tuple of mixed tokens gives once
+            each token carries its own kind in the sort key.
+            Rejected Korean's `조의2`, which needs `조` in the pattern and would put a Korean particle
+            into the numeral system every Latin corpus uses. Rejected folding a letter suffix to a
+            number: `23A` and `23/1` are different provisions in different drafting traditions, and
+            making them the same value would be this defect again with the collapse moved.
+            Tradeoff, and it is the loud one: **`scan` no longer returns integers**, so a consumer
+            doing arithmetic on its result breaks. `Provision` carries `__index__` so `range()` and
+            `int()` reach the base, and `korean_gapless` is corrected here — but a corpus repo that
+            scans and adds must be re-run, and a document carrying `13A` where its oracle declares
+            `13` now fails where it used to pass, which is the check working rather than the change
+            regressing.
+
+        An instrument with no provision labels is checkable, and its own index is not evidence = decision:
+          id: q5fyyb4q
+          why: >
+            `Expectation` scans `<label><number>` headings, and Singapore's drafting has no label:
+            a section heading is a bare `3.—(1)`. `singapore-id` could not use the class at all and
+            wrote its own, which is the per-corpus duplication this package exists to prevent — and
+            it hit a second failure in the same document, because an SSO PDF prints its own table of
+            contents before the body, so every section number appears two to four times and the
+            out-of-order check fires on a perfectly good extraction.
+            Two additions, and they are deliberately not a switch that turns the order check off.
+            `terminator` is a regex the number must be followed by, which is what makes a label-less
+            scan safe — `3.` followed by an em dash or a space is a heading, where a bare `3` at the
+            start of a line is any wrapped list item. An empty label with no terminator is refused
+            rather than scanned, because that pattern matches most of a document and an oracle that
+            matches everything passes everything. `start` is the mirror of `boundary`: it marks
+            where the body begins, and the text before it is dropped. With the contents page cut off
+            the front and the Schedules cut off the back, the numbers are in ascending order again
+            and the check that @zpycgven relies on survives intact.
+            `start` fails closed. A declared opener that is not found raises rather than scanning the
+            whole text, because the failure it prevents is the document's own index vouching for
+            sections the body may not contain — a truncated PDF still lists its missing tail on its
+            contents page, so an oracle reading both certifies the damage as complete.
+            Rejected `singapore-id`'s shape of answer, a set-membership check with the ordering
+            replaced by a highest-present tail/interior classification. Its diagnosis is better and
+            its check is weaker, and the weaker half is load-bearing: order is what caught a renderer
+            dropping sub-item numbers in `japan-id` (@y3aozl55). Keeping the order check and cutting
+            the front matter gets both. Rejected a caller-supplied callable for the body boundary,
+            which is a regex wearing a function. Tradeoff: an instrument whose body opener cannot be
+            expressed as a line regex is not served here, and `_window` gives a caller no way to say
+            "the second match" — recorded now rather than discovered by a corpus that needs it.
+
+    A lettered provision number is a structural opener = decision:
+      id: zr3b5ll2
+      why: >
+        `_STRUCTURAL` is the list of line openers `_rejoin_wrapped_lines` must never weld to the
+        line above, and it recognised `\d+\.` and not `23A.`. The consequence is not cosmetic and it
+        is not confined to the heading: a lettered section's heading is glued onto the marginal note
+        preceding it, so the section stops being line-anchored, so `completeness.scan` — which is
+        line-anchored on purpose (@qd6p2f3x) — cannot see it at all. `singapore-id` measured it on
+        the National Registration Act 1965: 33 of 34 sections scan and the one that fails is the
+        lettered one, which is the whole shape of the Electronic Transactions Act's Part 2A, ss.16A
+        to 16S — the provisions that repo exists to read. So one missing alternative in one regex
+        silently removed a jurisdiction's central finding from every scan run over it.
+        Chose `\d+[A-Z]{0,2}\.`, which is `singapore-id`'s own measured pattern less its lookahead.
+        Lettered and suffixed provisions are near-universal in common-law drafting — Singapore,
+        Malaysia, India, the UK, and Indonesia's `Pasal 13A` — so this is a hole in the general
+        cleaner rather than a Singapore quirk, which is why it is fixed here rather than worked
+        around per corpus. Two uppercase letters covers every form observed; three would begin to
+        admit an all-caps word followed by a full stop. Rejected `singapore-id`'s `(?=—|\s)`
+        lookahead: that pattern has to run mid-line, where a bare `1965.` ending a sentence reads as
+        section 1965, and this one is anchored at the start of a line where that cannot arise.
+        Tradeoff: a line opening with a year and a full stop was already treated as structural by
+        `\d+\.` and still is, so the change adds no new false opener — but it does mean a document
+        whose lines genuinely begin `12A.` mid-sentence will no longer be rejoined, which is the
+        direction this package errs in deliberately: an unjoined line is visible, a welded one is not.
+
+    Furniture is recognised by its shape, not only by its repeated text = decision:
+      id: ly7tho4y
+      why: >
+        `strip_repeated_furniture` matches a running head by exact text repeated at the page edges,
+        and a publisher that prints the page number *inside* the header line defeats it completely,
+        because no two pages then carry the same string. Singapore's SSO writes
+        `2020 Ed.   National Registration Act 1965   6`. Measured on the Personal Data Protection
+        Act: 124 of 124 footers stripped, and the header survived on 120 of 123 pages, landing
+        mid-provision through a 194,000-character document. A running header inside a sentence is
+        `method.md` §6's canonical case of output that looks fine and greps wrong, and `_PAGE_NUMBER`
+        does not reach it because the line is not a page number, it merely contains one.
+        Chose a shape rule beside the text rule rather than instead of it: each edge line is reduced
+        to a template by collapsing whitespace and masking every digit run, and a template is
+        furniture when it recurs across pages, carries at least one letter, and has at least one
+        masked field whose values **strictly increase** with the pages carrying it. The increasing
+        field is what makes the rule safe. "Constant except for a varying number" on its own would
+        also describe the edge rows of a long numbered table, and a rule that eats content to remove
+        furniture is worse than the furniture; a field that counts up with the pages is a page
+        number and nothing else in a statute behaves that way.
+        The threshold for the shape rule is lower than `FURNITURE_THRESHOLD`, and that is forced
+        rather than tuned. Printed legal publishing mirrors its running heads between recto and
+        verso — SSO puts the page number on the left of an even page and the right of an odd one —
+        so a mirrored header is two templates each appearing on about half the pages, and any
+        threshold above one half structurally cannot see one. 0.4 leaves margin for a title page and
+        a landscape insert.
+        Rejected lifting `singapore-id`'s answer, which anchors on the literal `<year> Ed.` edition
+        mark. It is correct and it is measured, and it is a Singapore string: every other publisher
+        would need its own anchor, which is the per-corpus duplication the kit exists to stop.
+        Rejected a caller-supplied anchor regex for the same reason — it makes each corpus solve it
+        again, with the added cost that a repo which does not know it has this problem will not pass
+        one. Tradeoff: the shape rule can in principle eat a genuine edge line that repeats on 40% of
+        pages with a page-correlated number in it, and the three conditions are what make that
+        unlikely rather than impossible; `raw_pages` remains available for a caller that needs the
+        pages before any of this runs.
+
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
       why: >
@@ -422,6 +642,60 @@ Shared method and tooling for the identity-law corpus programme = goal:
             stripped as furniture instead. Tradeoff: a Thai corpus built from PDFs still carries
             reordered marks in body text, and `search_key` does not fold them, so a phrase search
             across one can still under-count — recorded as a tick rather than pretended away.
+
+        A mixed-script page is judged on whether its Latin reads as words = decision:
+          id: szp4xt3n
+          why: >
+            @7xsnhink's mojibake gate reads a collapsed Thai character ratio as noise from a subset
+            font, and on a Thai document containing Latin it is simply wrong. `thailand-id` had five
+            documents refused, **four of them sound**, and every refusal was a bibliography page —
+            Latin citations inside a Thai instrument, where the Thai share of the letters legitimately
+            falls below half. A gate that refuses good documents is worse than no gate, because the
+            remedy a person reaches for is turning it off, and then the one genuine mojibake document
+            is stored.
+            The discrimination is `thailand-id`'s, lifted rather than reinvented: the share of Latin
+            runs on the page that **read as words** — three or more letters with at least one vowel.
+            Measured 0.92, 0.94, 0.94 and 0.97 on the sound pages against 0.12 on the damaged one, an
+            order of magnitude apart rather than a margin, which is why a crude test is the right one.
+            Mojibake from an encoding-less subset font lands as Latin letters in runs that are short
+            and vowelless; real citations do not.
+            It is wired as a **reprieve inside the gate, not a replacement for it**. The ratio still
+            decides that a page is suspect; the word test can then clear it, and only when there are
+            at least eight Latin runs to judge — below that the score is noise and the page is refused
+            as before, which keeps the gate fail-closed on the case it cannot see. Rejected lifting
+            `thailand-id`'s second test as well, the Thai-OCR trigram agreement: it is a better
+            discriminator and it needs tesseract and a Thai traineddata file, so putting it here would
+            make a gate in the core path depend on a binary most consumers do not install. That test
+            belongs where it is, in the consumer that already pays for OCR. Tradeoff: a damaged page
+            whose noise happens to read as English words is now stored where it used to be refused —
+            bounded by the fact that the failure mode is an encoding, not a language model, and the
+            measured gap is eight to one.
+
+        Dropped tone marks are the third corruption mode, and nothing saw them = decision:
+          id: h4srdl2g
+          why: >
+            @7xsnhink names two ways a Thai extraction is silently wrong, and `thailand-id` found a
+            third that passes both. The DOPA/ThaID manual extracts with U+0E33 intact — sixteen
+            occurrences, so the sara-am gate is satisfied — and with every tone mark gone: `สราง` for
+            `สร้าง`, `ใหม` for `ใหม่`, `พิสูจน` for `พิสูจน์`. Its Thai character ratio is high, so the
+            mojibake gate is satisfied too. The text is readable, wrong, and greps wrong, which is the
+            exact profile @zpycgven refuses to store.
+            Chose the same shape as the sara-am gate, deliberately, because the evidence has the same
+            shape: not one tone mark in a document long enough that zero is impossible. Thai writes
+            U+0E48–U+0E4B on the order of one character in twenty, so 500 Thai characters carrying
+            none is a typesetter that lost them rather than prose that happens not to need them —
+            a wider margin than the sara-am gate runs on at the same floor. A separate error class,
+            because the remediation differs from the other two only in what to tell the reader, and
+            @7xsnhink's family prefix is what a caller matches on.
+            Rejected a *proportional* test — tone marks below some share of the Thai characters —
+            which is what a partial loss would need. Every observed instance is total, a threshold on
+            a ratio needs a corpus to calibrate that nobody has measured, and a gate calibrated by
+            guess refuses good documents, which is @szp4xt3n's lesson from the same week. Rejected
+            also gating on U+FFFD, which `thailand-id` notes is a usable signal in the same document:
+            it is a real signal and a different obstacle — bytes that did not decode, not marks that
+            were dropped — and bundling it here would put two unrelated refusals behind one code.
+            Tradeoff: a document losing *most* of its tone marks still passes, and the gate's honesty
+            is that it says what it checked rather than implying the text is sound.
 
     A browser fetcher, scoped to the two obstacles a browser can actually remove = decision:
       id: lkm7beuo

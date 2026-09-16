@@ -19,9 +19,17 @@ ToUnicode CMap yields output that is plausibly Thai-looking and semantically noi
 §6's "refuse empty extractions" never fires. Worse, the running header extracts *correctly* while
 the body does not, so a header-based sanity check passes.
 
-So this module gates rather than repairs: a page whose Thai character ratio collapses, and a
-document with no `ำ` at all, are **refused** and routed to OCR. See `this.i` @7xsnhink and
-@psletl4a.
+**A third corruption mode passes both of those gates.** The DOPA/ThaID manual extracts with its
+sara am intact and every tone mark gone — `สราง` for `สร้าง`, `ใหม` for `ใหม่` — so it is readable,
+wrong, and greps wrong. See @h4srdl2g.
+
+So this module gates rather than repairs: a page whose Thai character ratio collapses, a document
+with no `ำ` at all, and a document with no tone mark at all, are **refused** and routed to OCR. See
+`this.i` @7xsnhink, @psletl4a and @h4srdl2g.
+
+The ratio gate alone refused four sound documents for every one it caught, because a bibliography
+page inside a Thai instrument is legitimately more Latin than Thai. A page it suspects is now put
+to a second question — does the Latin read as words — before it is refused. See @szp4xt3n.
 """
 
 from __future__ import annotations
@@ -45,6 +53,22 @@ _MIN_THAI_CHARS = 10
 # The sara-am check needs enough text to be conclusive: at roughly 1.5% of Thai prose, zero U+0E33
 # in this many characters is not a document without the vowel, it is a typesetter that lost it.
 _SARA_AM_FLOOR = 500
+
+# The tone marks, U+0E48..U+0E4B. Thai writes one roughly every twenty characters, so the same
+# floor carries a wider margin here than it does for sara am: a document this long with none of
+# them lost them. @h4srdl2g.
+TONE_MARKS = "่้๊๋"
+_TONE_MARK_FLOOR = 500
+
+# @szp4xt3n. A Latin run is two letters or more; it "reads as a word" at three or more with a
+# vowel. Crude on purpose — the point is not to recognise English but to tell prose from the
+# residue of a broken encoding, and `thailand-id` measured those at 0.92-0.97 against 0.12.
+_LATIN_RUN = re.compile(r"[A-Za-z]{2,}")
+_VOWEL = re.compile(r"[aeiouAEIOU]")
+# Above this share of Latin runs reading as words, the Latin on the page is real text.
+WORDS_AT = 0.5
+# Below this many runs the share is noise, and a page the ratio gate suspects stays refused.
+MIN_LATIN_RUNS = 8
 
 # A tone mark that has landed after a following-vowel. This sequence is never correct Thai, which
 # is what makes the repair safe; the ambiguous cluster case is deliberately left alone. @psletl4a.
@@ -91,6 +115,12 @@ class ThaiSaraAmError(ThaiTextError):
     code = "e.input.format.thai-text.sara-am.f"
 
 
+class ThaiToneMarkError(ThaiTextError):
+    """A Thai document that has lost every tone mark, which passes both the other gates."""
+
+    code = "e.input.format.thai-text.tone-marks.f"
+
+
 class ThaiEmptyError(ThaiTextError):
     """No text layer at all — the case `pdf.py` already refuses, restated for this path."""
 
@@ -111,6 +141,21 @@ def thai_ratio(text: str) -> float:
     if not letters:
         return 0.0
     return sum(1 for ch in letters if is_thai(ch)) / len(letters)
+
+
+def word_likeness(text: str) -> tuple:
+    """The share of the Latin runs in `text` that read as words, and how many runs there were.
+
+    Three letters or more with at least one vowel. Lifted from `thailand-id/tools/adjudicate.py`,
+    where it separated four sound bibliography pages from one genuinely damaged page: 0.92, 0.94,
+    0.94 and 0.97 against 0.12. Public so that the consumer which measured it can stop carrying
+    its own copy.
+    """
+    runs = _LATIN_RUN.findall(text)
+    if not runs:
+        return 0.0, 0
+    words = sum(1 for run in runs if len(run) >= 3 and _VOWEL.search(run))
+    return words / len(runs), len(runs)
 
 
 def compose_sara_am(text: str) -> str:
@@ -196,14 +241,7 @@ def _gate(pages: list) -> None:
             continue  # A Latin page: ETDA publishes English translations, which are not failures.
         ratio = thai_ratio(page)
         if ratio < _MIN_THAI_RATIO:
-            raise ThaiMojibakeError(
-                f"Page {number} carries Thai characters but only {ratio:.0%} of its letters are "
-                f"Thai, which is what an embedded subset font with no ToUnicode CMap produces: "
-                f"output that is non-empty, looks Thai, and means nothing. Note that fidelity "
-                f"varies within one document — the running header often extracts correctly while "
-                f"the body does not — so re-extract this document with OCR rather than trusting "
-                f"any part of the embedded text layer."
-            )
+            _judge_the_latin(number, ratio, page)
     if thai_total >= _SARA_AM_FLOOR and not any(SARA_AM in page for page in pages):
         raise ThaiSaraAmError(
             f"This extraction holds {thai_total} Thai characters and not one U+0E33 (sara am, "
@@ -211,6 +249,49 @@ def _gate(pages: list) -> None:
             f"one. 'กำหนด' occurs 87 times in the Gazette PDPA and matches zero times in its "
             f"extraction, so a sweep over this text would report that the instrument prescribes "
             f"nothing. Re-extract with OCR."
+        )
+    if thai_total >= _TONE_MARK_FLOOR and not any(
+        mark in page for page in pages for mark in TONE_MARKS
+    ):
+        raise ThaiToneMarkError(
+            f"This extraction holds {thai_total} Thai characters and not one tone mark "
+            f"(U+0E48-U+0E4B, '่ ้ ๊ ๋'), which is impossible in Thai prose of that length: Thai "
+            f"writes one roughly every twenty characters, so the typesetter dropped every one. "
+            f"This is the corruption the other two gates cannot see — the DOPA manual keeps its "
+            f"sara am and its Thai character ratio while extracting 'สราง' for 'สร้าง' and 'ใหม' "
+            f"for 'ใหม่', so it reads as sound Thai and matches nothing a reader would type. "
+            f"Re-extract with OCR."
+        )
+
+
+def _judge_the_latin(number: int, ratio: float, page: str) -> None:
+    """A page the ratio suspects is refused unless its Latin reads as words. @szp4xt3n.
+
+    The ratio gate on its own refused four sound documents for every one it caught, and every
+    refusal was a bibliography page — Latin citations inside a Thai instrument, where the Thai
+    share of the letters legitimately falls below half. A gate that refuses good documents is
+    worse than no gate, because the remedy a person reaches for is turning it off.
+    """
+    share, runs = word_likeness(page)
+    if runs < MIN_LATIN_RUNS:
+        raise ThaiMojibakeError(
+            f"Page {number} carries Thai characters but only {ratio:.0%} of its letters are Thai, "
+            f"which is what an embedded subset font with no ToUnicode CMap produces: output that "
+            f"is non-empty, looks Thai, and means nothing. There are too few Latin runs on this "
+            f"page ({runs}) to tell that apart from a page of citations, so it is refused rather "
+            f"than guessed at. Note that fidelity varies within one document — the running header "
+            f"often extracts correctly while the body does not — so re-extract with OCR rather "
+            f"than trusting any part of the embedded text layer."
+        )
+    if share < WORDS_AT:
+        raise ThaiMojibakeError(
+            f"Page {number} carries Thai characters but only {ratio:.0%} of its letters are Thai, "
+            f"and only {share:.0%} of its {runs} Latin runs read as words. That is the signature "
+            f"of an embedded subset font with no ToUnicode CMap: output that is non-empty, looks "
+            f"Thai, and means nothing. A page of Latin citations inside a Thai instrument scores "
+            f"above 90% here and is not refused. Note that fidelity varies within one document — "
+            f"the running header often extracts correctly while the body does not — so re-extract "
+            f"with OCR rather than trusting any part of the embedded text layer."
         )
 
 

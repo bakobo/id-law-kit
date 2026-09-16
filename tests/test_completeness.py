@@ -15,6 +15,8 @@ from lawcorpus.completeness import (
     CompletenessError,
     Expectation,
     OracleError,
+    Provision,
+    provision,
     japanese_article_range,
     korean_gapless,
     scan,
@@ -60,9 +62,13 @@ class TestScan:
     def test_reads_thai_numerals_in_either_system(self):
         assert scan("มาตรา ๙\nx\nมาตรา 10", "มาตรา", numerals="thai") == [9, 10]
 
-    def test_a_branch_article_counts_as_its_base(self):
-        # Japanese 枝番: 第六条の二 is an article inserted after article 6, not article 62.
-        assert scan("第六条の二　x", "第", numerals="kanji") == [6]
+    def test_a_branch_article_is_neither_its_base_nor_a_two_digit_number(self):
+        # Japanese 枝番: 第六条の二 is an article inserted after article 6, not article 62 — and
+        # @kolycpun reverses the rest of it, because reading it as 6 made an insertion
+        # indistinguishable from a duplicate heading.
+        found = scan("第六条の二　x", "第", numerals="kanji")
+        assert found == [Provision(6, (2,))]
+        assert found != [6] and found != [62]
 
     def test_reads_kanji_numbers_past_a_hundred(self):
         # 道路交通法 runs to article 166, and 저작권법 to 142; three digits are ordinary.
@@ -406,3 +412,198 @@ class TestThePublicKanjiReader:
 
         with pytest.raises(OracleError):
             kanji_number("五千")
+
+
+class TestProvision:
+    """@kolycpun — the value a sub-numbered heading reads as. It has to behave as its own base
+    integer where there is no sub-number, or every expectation declared over integers breaks."""
+
+    def test_a_bare_provision_equals_its_number(self):
+        assert Provision(32) == 32
+        assert 32 == Provision(32)
+
+    def test_a_bare_provision_hashes_as_its_number(self):
+        # The membership test in `verify` is a set lookup, so equality without hashing is silent.
+        assert hash(Provision(32)) == hash(32)
+        assert Provision(32) in {32, 33}
+
+    def test_a_sub_numbered_provision_does_not_equal_its_base(self):
+        assert Provision(32, (2,)) != 32
+        assert Provision(32, (2,)) not in {32}
+
+    def test_two_provisions_with_the_same_parts_are_equal_whatever_they_render_as(self):
+        assert Provision(6, (2,), "の") == Provision(6, (2,), "/")
+
+    def test_it_is_not_equal_to_something_that_is_not_a_provision_or_a_number(self):
+        assert Provision(32) != "32"
+
+    def test_a_sub_number_sorts_between_its_base_and_the_next_provision(self):
+        assert sorted([Provision(7), Provision(32, (2,)), Provision(32), Provision(6)]) == [
+            Provision(6), Provision(7), Provision(32), Provision(32, (2,))
+        ]
+
+    def test_sub_numbers_sort_numerically_rather_than_as_text(self):
+        assert Provision(6, (2,)) < Provision(6, (10,))
+
+    def test_a_letter_suffix_sorts_after_the_bare_number_and_before_the_next(self):
+        assert Provision(23) < Provision(23, ("A",)) < Provision(23, ("B",)) < Provision(24)
+
+    def test_it_compares_against_a_plain_integer_in_both_directions(self):
+        assert Provision(23, ("A",)) > 23
+        assert 24 > Provision(23, ("A",))
+
+    def test_it_is_not_ordered_against_something_it_cannot_compare_with(self):
+        with pytest.raises(TypeError):
+            Provision(23) < "24"
+
+    def test_index_reaches_the_base_so_range_and_int_still_work(self):
+        assert int(Provision(23, ("A",))) == 23
+        assert list(range(Provision(3))) == [0, 1, 2]
+
+    def test_it_renders_the_way_its_own_drafting_tradition_writes_it(self):
+        assert str(Provision(32, (2,), "/")) == "32/2"
+        assert str(Provision(6, (2,), "の")) == "6の2"
+        assert str(Provision(23, ("A",))) == "23A"
+        assert str(Provision(23)) == "23"
+
+    def test_provision_parses_the_form_a_table_of_contents_hands_you(self):
+        assert provision("23A") == Provision(23, ("A",))
+        assert provision("32/2") == Provision(32, (2,))
+        assert provision("17") == 17
+
+    def test_provision_refuses_what_it_cannot_read_rather_than_guessing(self):
+        with pytest.raises(OracleError):
+            provision("Schedule")
+
+
+class TestScanReadsSubNumbering:
+    """@kolycpun — four jurisdictions, one collapse. `มาตรา ๓๒/๒` read as 32, so an inserted
+    section was indistinguishable from a duplicate heading."""
+
+    def test_thai_reads_the_slash_form(self):
+        text = "มาตรา ๓๒ ความ\nมาตรา ๓๒/๒ ความ\nมาตรา ๓๓ ความ"
+        assert scan(text, "มาตรา", numerals="thai") == [32, Provision(32, (2,)), 33]
+
+    def test_a_thai_inserted_section_is_no_longer_its_parent(self):
+        found = scan("มาตรา ๓๒/๒ ความ", "มาตรา", numerals="thai")
+        assert found != [32]
+        assert str(found[0]) == "32/2"
+
+    def test_japanese_reads_the_branch_article(self):
+        text = "第六条　目的\n第六条の二　定義\n第七条　適用"
+        assert scan(text, "第", numerals="kanji") == [6, Provision(6, (2,)), 7]
+
+    def test_a_japanese_branch_article_still_satisfies_a_declaration_of_its_base(self):
+        # The TOC declares article 6; the body carries 第六条 and 第六条の二.
+        text = "第六条　目的\n第六条の二　定義"
+        Expectation.over("第", [6], numerals="kanji").verify(text)
+
+    def test_a_common_law_letter_suffix_is_read(self):
+        text = "Section 23 Interpretation\nSection 23A Registration\nSection 24 Offences"
+        assert scan(text, "Section") == [23, Provision(23, ("A",)), 24]
+
+    def test_an_indonesian_inserted_article_is_read(self):
+        assert scan("Pasal 13A Ketentuan", "Pasal") == [Provision(13, ("A",))]
+
+    def test_a_korean_branch_article_still_reads_as_its_base(self):
+        # 조의2 needs a Korean particle in the pattern, which the arabic system does not carry.
+        assert scan("제24조의2 목적", "제") == [24]
+
+    def test_an_ordinary_heading_is_unchanged(self):
+        assert scan("Pasal 21\nPasal 23", "Pasal") == [21, 23]
+
+    def test_deeper_sub_numbering_is_read_in_order(self):
+        assert scan("มาตรา ๓๒/๒/๑ ความ", "มาตรา", numerals="thai") == [Provision(32, (2, 1))]
+
+    def test_roman_numerals_carry_no_sub_numbering(self):
+        assert scan("BAB IV\nBAB V", "BAB", numerals="roman") == [4, 5]
+
+    def test_a_missing_inserted_section_is_now_visible_to_an_oracle(self):
+        text = "มาตรา ๓๒ ความ\nมาตรา ๓๓ ความ"
+        expect = Expectation.over("มาตรา", [32, provision("32/2"), 33], numerals="thai")
+        with pytest.raises(CompletenessError) as e:
+            expect.verify(text)
+        assert "32/2" in str(e.value)
+
+
+class TestAnInstrumentWithNoProvisionLabels:
+    """@q5fyyb4q — a Singapore section heading is a bare `3.—(1)`, and the PDF prints its own
+    contents page before the body."""
+
+    SSO = "\n".join(
+        [
+            "ARRANGEMENT OF SECTIONS",
+            "1. Short title",
+            "17. Registration",
+            "23A. Identity documents",
+            "An Act to provide for the registration of persons.",
+            "1.—(1) This Act is the National Registration Act 1965.",
+            "17.—(1) The Registrar must register every person.",
+            "23A.—(1) The Registrar may issue an identity card.",
+            "FIRST SCHEDULE",
+            "1. Form of application",
+        ]
+    )
+
+    def test_a_label_less_scan_needs_a_terminator_or_it_is_refused(self):
+        with pytest.raises(OracleError) as e:
+            scan("1. Short title", "")
+        assert "terminator" in str(e.value)
+
+    def test_a_terminator_anchors_a_heading_that_has_no_label(self):
+        found = scan("1.—(1) This Act is the Act.\n(a) a wrapped item", "", terminator=r"\.")
+        assert found == [1]
+
+    def test_the_contents_page_is_cut_off_the_front(self):
+        found = scan(self.SSO, "", terminator=r"\.", start=r"^An Act\b", boundary=r"^FIRST SCHEDULE")
+        assert found == [1, 17, Provision(23, ("A",))]
+
+    def test_the_whole_thing_verifies_as_a_declared_structure(self):
+        Expectation.over(
+            "",
+            [1, 17, provision("23A")],
+            terminator=r"\.",
+            start=r"^An Act\b",
+            boundary=r"^FIRST SCHEDULE",
+            source="the instrument's own table of contents, as SSO renders it",
+        ).verify(self.SSO)
+
+    def test_without_the_start_a_sound_document_fails_on_its_own_contents_page(self):
+        # Every section number appears twice, so the order check fires on a good extraction.
+        # This is the second half of what made the class unusable for singapore-id.
+        expect = Expectation.over(
+            "", [1, 17, provision("23A")], terminator=r"\.", boundary=r"^FIRST SCHEDULE"
+        )
+        with pytest.raises(CompletenessError) as e:
+            expect.verify(self.SSO)
+        assert "out of order" in str(e.value)
+
+    def test_with_the_start_a_truncated_body_is_caught_rather_than_vouched_for(self):
+        # The contents page still lists 23A. Scanning from the body opener is what stops the
+        # document's own index certifying a section its body no longer carries.
+        truncated = self.SSO.replace("23A.—(1) The Registrar may issue an identity card.\n", "")
+        with pytest.raises(CompletenessError) as e:
+            Expectation.over(
+                "", [1, 17, provision("23A")], terminator=r"\.",
+                start=r"^An Act\b", boundary=r"^FIRST SCHEDULE",
+            ).verify(truncated)
+        assert "23A" in str(e.value)
+
+    def test_a_start_that_is_not_found_refuses_rather_than_scanning_everything(self):
+        with pytest.raises(OracleError) as e:
+            scan(self.SSO, "", terminator=r"\.", start=r"^In exercise of the powers\b")
+        assert "body" in str(e.value)
+
+    def test_an_unusable_start_regex_is_named_as_such(self):
+        with pytest.raises(OracleError) as e:
+            scan(self.SSO, "", terminator=r"\.", start="[")
+        assert "regular expression" in str(e.value)
+
+    def test_the_refusal_reads_without_a_label_to_hang_it_on(self):
+        expect = Expectation.over("", [1, 17, 99], terminator=r"\.", start=r"^An Act\b",
+                                  boundary=r"^FIRST SCHEDULE")
+        with pytest.raises(CompletenessError) as e:
+            expect.verify(self.SSO)
+        message = str(e.value)
+        assert "' '" not in message
+        assert "99" in message
