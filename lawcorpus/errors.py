@@ -9,7 +9,7 @@ codes predate `dev/standards/error-codes.md`, whose grammar is
 `<sorter>.<descriptor>[.<sub>].<disposition>` — `e.input.format.f` — and which is what everything
 added since uses, so that a caller can prefix-match a branch of meaning. Converting the older
 codes is a change of published identity for each one, so it is recorded rather than done in
-passing. ~7dau
+passing. ~6fpq
 """
 
 from __future__ import annotations
