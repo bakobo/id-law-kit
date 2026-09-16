@@ -714,6 +714,55 @@ Shared method and tooling for the identity-law corpus programme = goal:
             Tradeoff: one pattern now carries four traditions' vocabulary, so a false opener in any
             of them is a false opener everywhere, and the tests pin each tradition's examples
             precisely because the union makes a mistake travel.
+          children:
+            A list label is not a word, and a registry nobody can select from is not one = decision:
+              id: o3dodx44
+              why: >
+                @zzqzaku4's tradeoff came true, in the way it named: "a false opener in any of them
+                is a false opener everywhere". The `indonesian` entry's label pattern is
+                `[a-z0-9]{1,3}\.[ \t]`, three lower-case alphanumerics and a dot, which is `a.` and
+                `12.` and also **`out. `** — so a line of English prose that wraps after
+                "…subverting or impairing a consumer's choice to opt-" / "out. Illustrative examples
+                follow:" opens a block instead of being rejoined, and one of `ccpa`'s 91 regulation
+                sections is split down the middle. English words at the head of a wrapped line are
+                not rare; `in.`, `to.` and `set.` all qualify.
+                **And the escape hatch was unreachable.** `structural_pattern('common-law')`
+                reproduces `ccpa`'s stored text where `structural_pattern()` does not, but `extract`
+                takes no `traditions` argument and `_STRUCTURAL` is a module global, so no caller
+                could reach the fix. A per-tradition registry a caller cannot select from is a
+                registry in name only, and @zzqzaku4 plainly meant it to be selectable — it argues
+                at length about what the *default* should be, which is a question about an argument
+                that was never added.
+                Chose to make a label something no word can be: **a single letter, or any short run
+                of characters containing a digit.** `a.` and `b.` stay labels, `1.`, `12.` and
+                `123.` stay labels, and the OCR-mangled numbers this corpus is full of — `t4.` for
+                `14.`, `2o8.` for `208.`, `284a.` — stay labels because they carry a digit. No
+                English word does. Rejected requiring the digit everywhere, which loses those; and
+                rejected keeping two letters, which is `in.` and `to.` again.
+                Measured over 38 PDFs from three corpora, three documents change at all. One is the
+                `ccpa` sentence, repaired. One is UU 13/2022, **also repaired** — `284a.` carries a
+                digit and is now a label, where the old three-character bound missed it and welded a
+                whole paragraph onto the running head above it. The entire cost is the third: **one
+                joined pair of list items in one Indonesian instrument**. UU 24/2013 continues a
+                list past `z.` as `aa.` `bb.` `cc.` `dd.` `ee.`, doubled letters that are real
+                labels and are no longer recognised. Four of the five are unaffected because a list
+                item ends in `;` and the rejoiner does not cross terminal punctuation; the fifth
+                follows an item ending in "dan", so `dd.` and `ee.` now share a line. **No word is
+                lost**, and the damage it replaces was a split sentence in a different corpus.
+                The label also inherits @avcicqvb's lookahead, which the common-law entry already
+                carried and this one did not. A label is followed by the thing it labels, so
+                `2017.` alone on a line stays a wrapped year rather than becoming a paragraph
+                number — which the old three-character bound achieved by accident, and a bound wide
+                enough for `284a.` is wide enough for `2017.` unless the lookahead says otherwise.
+                The selector is plumbed at the same time, `traditions` threading from `extract`
+                through `clean_pages` and `strip_repeated_furniture` to both consumers of the idea,
+                defaulting to every tradition — @zzqzaku4's default, unchanged and still right for a
+                caller who does not know what they are holding. A caller who *does* know can now say
+                so, which is the difference between a registry and a constant.
+                Tradeoff: a doubled-letter label is furniture to nobody and law to nobody, but it is
+                real drafting, and this pattern cannot see it without also seeing `in.`. The
+                asymmetry is deliberate — a missed label merges two list items visibly on one line,
+                and a false label splits a sentence in a way that greps wrong and reads wrong.
 
         A provision number must be followed by something; a wrapped year is followed by nothing = decision:
           id: avcicqvb
@@ -854,6 +903,48 @@ Shared method and tooling for the identity-law corpus programme = goal:
             genuinely furniture but is also a structural opener in some tradition will survive — the
             direction this package errs in deliberately, because a surviving header is visible and a
             deleted provision is not.
+          children:
+            Counting up is not enough; a page number advances at least one per page = decision:
+              id: ykhhndj7
+              why: >
+                `_counts_up` asks whether *some* field strictly increases across the pages carrying
+                a shape, and on two pages that is almost free. One field ascends by chance half the
+                time, so a template with three numeric fields clears the test seven times in eight
+                on no evidence whatever. `MIN_FURNITURE_PAGES` is 2, so two pages is all a shape
+                ever has to produce.
+                Measured, that deleted law. `singapore-id`'s PDPA Statutory Bodies Notification is
+                seven pages, and `wef \x00/\x00/\x00]` was carried by two of them with the fields
+                (3, 10, 2016) and (4, 10, 2016). The day-of-month ascends from 3 to 4, the span of 4
+                pages clears a document bar of 3, and two carrying pages clear a bar of two — so the
+                shape became a running head and took `wef 03/10/2016]` and `wef 04/10/2016]` with
+                it, leaving the Schedule reading `12. [Deleted by S 464/2016` with no date. Every
+                SSO instrument annotates its amendments as `[S nnn/yyyy wef dd/mm/yyyy]`, and those
+                numbers ascend chronologically by construction, so the shape is dense in this corpus
+                and its fields are pre-sorted to pass (tick ~6wh3).
+                **Rejected raising `MIN_FURNITURE_PAGES`, which is the obvious fix and a measured
+                disaster.** Seven of `singapore-id`'s twenty instruments are three-page subsidiary
+                instruments whose mirrored head `S 699/2016   2` is carried by exactly two pages,
+                because two is the most evidence a three-page document can offer. A floor of three
+                strips the head from none of them, which is the direction ~52jo is already
+                complaining about — that the rule misses a mirrored running head on a *short*
+                instrument — and a fix that trades one of these for the other is not a fix.
+                Chose to ask what the ascending field is doing rather than whether it ascends. A
+                page number advances **at least one per page**, so the field's total rise is
+                compared against the pages it rose across: `values[-1] - values[0] >= last - first`.
+                The comparison is against the page indices, not the number of carrying rows, which
+                is what makes it survive mirroring — a head printed on alternate pages rises 2 per
+                appearance across 2 pages and passes exactly as a head on every page does. The
+                `wef` date rises 1 across 3 pages and fails, because it is not counting anything
+                about pages.
+                Measured over 36 PDFs from two corpora, **exactly one group changes verdict**: the
+                `wef` shape. Every legitimate running head is kept — all seven two-page mirrored
+                heads, the Interpretation Act's 45 pages, the Indonesian `-\x00-` markers and the
+                `SK No \x00 A` serials. A test that removes one false positive and no true ones
+                across two corpora is as clean a separation as this rule has had.
+                Tradeoff: a running head whose number advances *slower* than the pages is now
+                refused — one number per two-page spread, or a part number that changes every tenth
+                page. Both are furniture this will leave in the text, which is the visible failure;
+                the one it stops was a date that disappeared from a Schedule without trace.
 
         Two edge windows, because only one of the three rules is evidence-free = decision:
           id: kbdz5bmq
@@ -932,6 +1023,70 @@ Shared method and tooling for the identity-law corpus programme = goal:
                 that is **purely numeric**, since the shape rule masks numeric fields. Nothing in 24
                 documents shows one, and a body fragment that is only a number carries no meaning to
                 lose.
+
+            Position is not evidence: a bare number is furniture only if the numbers march = decision:
+              id: fu7njgwq
+              why: >
+                @kbdz5bmq's premise is false, and four corpora measured it independently. It reads
+                "a line that is nothing but a number is furniture *because* it sits at the edge",
+                and that is the one rule in this package with no cross-page evidence behind it at
+                all — the text rule needs the line repeated on 60% of pages, the shape rule needs it
+                repeated with only its fields varying, and this one needs nothing. What the edge
+                actually establishes is that a *page number* would be there if there were one. It
+                says nothing about the line that is.
+                What that cost, measured rather than reasoned: `singapore-id` lost `2016` and `2025`
+                from the titles of two amending instruments in NRA 1965 RG 2's amendment-history
+                table, where the PDF wraps `National Registration (Amendment) Regulations` / `2016`
+                / `Date of commencement`, and the bare year was deleted rather than rejoined. That
+                corpus now stores four words less law than its source carries (`singapore-id`
+                @r56tthgf, ticks ~55kg and ~6wh3). `japan-id` lost two footnote markers from a
+                governance report, and the Japanese rejoiner then **welded footnote 15 onto footnote
+                14 and produced a sentence neither footnote contains** — the same mechanism as the
+                Indonesian `REPUBLIK INDONESIA -2- BABI` that @kbdz5bmq was written to stop, running
+                the other way, and fabrication rather than loss. `thailand-id` lost
+                `ขมธอ. 24-2563` from both cover pages and five footnote markers. A rule whose whole
+                case is position cannot tell 「15」 from 「13」, and nothing downstream can either.
+                **The fix ~55kg suggests was built and refuted by measurement.** It proposes
+                restoring the raw-index window, on the reading that the blank-skipping rank is what
+                widened the rule's reach — true on the Singapore evidence, where the wrapped `2016`
+                sits at raw index 31 of 38 and rank 31 of 34, inside the last three *filled* lines
+                and outside the last three raw ones. But measured across the Indonesian corpus,
+                **every** page marker sits at raw index 3 to 5 behind three or four leading blank
+                lines, at rank 2: the raw window of 3 does not reach a single one of them. Reverting
+                would trade four Singapore words for some seven hundred Indonesian page markers,
+                each of which is an unterminated line the rejoiner then welds into the heading
+                beneath it. The window was never the defect; the absent evidence was.
+                Chose to give the rule the same kind of evidence the other two carry, in the form
+                the thing itself takes: **page numbers march with the pages.** Read each candidate's
+                value and subtract the page index, and a real numbering run is a **cohort** sharing
+                one offset — 1 for a document numbered from its first page, -24 for the Penjelasan
+                that restarts after it. A cohort is furniture when three things hold: at least
+                `MIN_FURNITURE_PAGES` pages carry it, two of those pages are **adjacent**, and the
+                offset is no larger than the document is long. Only lines inside a qualifying cohort
+                are dropped, so the rule now deletes a number because other numbers corroborate it.
+                Measured over 36 PDFs from two corpora: **744 drops become 729, and all 15 of the
+                survivors are false positives** — `1999`, `2016`, `2017` and `2025` from NRA 1965 RG
+                2, `2000` and a cover-page `1` from the Interpretation Act, three more cover-page
+                `1`s, and `031`, `-702-`, `2`, `-24-` and `2025` from five Indonesian instruments.
+                Not one legitimate page marker is lost, including the two independent numbering runs
+                in UU 11/2008 (offsets 1 and -24) and UU 12/2011's sparse run of 19 pages across a
+                span of 48.
+                **Both halves of the test are load-bearing, and each was refuted on its own.**
+                Adjacency alone keeps the Singapore years, because `2016` and `2017` sit on adjacent
+                pages 22 and 23 and share the offset 1994 — two pages, adjacent, a perfect cohort of
+                a kind no document has: the bound on the offset is what refuses them, since a
+                25-page document does not begin at printed page 1995. The bound alone keeps a pair
+                of numbers that agree by coincidence across a long document, which adjacency
+                refuses. Rejected a third condition, density — requiring the cohort to fill
+                `SHAPE_THRESHOLD` of its own span, as the shape rule does. Measured, it refuses UU
+                12/2011's real run by one page and costs 14 correct drops, while catching nothing
+                the other two conditions do not.
+                Tradeoff, stated rather than glossed: an excerpt whose printed numbering starts
+                beyond its own length is no longer served — pages 340 to 365 of a volume have an
+                offset of 340 and will keep their numbers — and so is a document carrying page
+                numbers on exactly two non-adjacent pages. Both fail by leaving a page number in the
+                text, which is visible to anyone reading it. The failure this replaces was a deleted
+                year, which is visible to no one.
 
     A watermarked PDF is refused, because neither rendering of it is trustworthy = decision:
       id: k76mmqlc
@@ -1034,6 +1189,62 @@ Shared method and tooling for the identity-law corpus programme = goal:
             undetected on the default path. A detector needs **geometry** — `pdftotext -bbox` gives
             the coordinates that tell a diagonal stamp from a margin column — and that is the
             distinction no text-only statistic tried here could make.
+
+    Loss is measured and reported; only fabrication is refused = decision:
+      id: sqxbhlk2
+      why: >
+        Every gate in this package checks **declared structure** — sections present, numbering
+        contiguous, extraction non-empty, validity stated. Not one checks **whether the words
+        survived**, and in one round four corpora found the same blind spot by four separate hand
+        diffs: `singapore-id` lost four words of law to @fu7njgwq and @ykhhndj7, `japan-id` had a
+        footnote welded onto another and a sentence produced that neither contains, `thailand-id`
+        lost a standard's number from both its cover pages, and `eu-data-law` lost **7,772 words**
+        of `32021D0914` at the fetch layer, where a caller reading `body` alone stopped seeing the
+        annex. Four routes, one hole: nothing compares what came out with what went in.
+        **The objection that this needs two renderings is false where it matters.** `clean_pages`
+        is handed the source pages and returns the cleaned text, so both sides of the comparison
+        are already in the function. Nothing is re-extracted and nothing is fetched twice.
+        Chose to **measure loss and refuse fabrication**, which are not the same decision and the
+        measurement says so. Removals cannot be refused: across 38 PDFs from three corpora the
+        cleaner removes **11,763 words**, of which four were law and the rest were furniture the
+        corpus is better without. No threshold separates those four, because the thing that made
+        them wrong is *why* they were dropped, not how many there were — which is why the fix for
+        them is in the rules and not here. So `compare` reports removals, and it is the harvester,
+        who knows what the document should contain, that reads the report. That is worth shipping
+        on its own: both of this round's furniture defects were found by diffing a word stream by
+        hand, and this makes that a call rather than an afternoon.
+        Additions are a different kind of claim. **Measured over the same 38 documents, the cleaner
+        adds exactly zero words**, and it is zero by construction as well as by measurement: every
+        step deletes lines or joins them with a space, and normalisation is applied to both sides
+        of the comparison, so no step can mint a token. A guard whose false-positive rate is zero
+        both empirically and structurally is the kind this package can leave switched on, which is
+        the standard @uf4epdvm set when it turned the reading-order guard off. So a word that
+        appears in the output and not in the input raises `e.self.corrupt.text.f` and the text does
+        not leave the package.
+        **Rejected, after building and measuring it: refusing a drop that splices body text.** It
+        is the test that actually catches this round's Japanese fabrication — a dropped line sitting
+        immediately between an unterminated line and a continuation, so removing it welds two
+        sentences that never touched. Measured, it fires **629 times across 16 of the 38
+        documents**, because a footer *is* a line between two body lines and removing it is exactly
+        what lets the sentence rejoin across the page break. The normal case and the pathological
+        one have the same shape, which is @k76mmqlc's lesson arriving from a second direction:
+        there, moving text broke as many adjacencies as it formed, and here, deleting furniture
+        forms the adjacency that deleting law also forms. Recorded rather than deleted, because it
+        reads as the obvious test and is the first thing the next reader will propose.
+        The tokeniser is per script, and Japanese forced it. `clean_japanese_pages` rejoins with
+        **no separator**, because Japanese writes no spaces between words — so a whitespace
+        tokeniser sees every legitimate rejoin as two words vanishing and one new word appearing,
+        and would refuse every Japanese document on its first line. Characters are what survive
+        that, so the Japanese path is checked character by character, which is the same claim in
+        the alphabet the script uses. Thai is **excluded**, and not by oversight: `repair_marks`
+        and `compose_sara_am` compose and reorder combining marks on purpose (@psletl4a and its
+        siblings), so its character multiset is meant to change and a check would report the repair
+        as the damage.
+        Tradeoff: the fabrication guard cannot see a fabrication made entirely of words the source
+        already contains, which is what welding two footnotes is — that one is caught upstream, by
+        not deleting the marker between them, and downstream by a human reading the report of what
+        was removed. This buys the loud half of the problem, and it says plainly that the quiet
+        half is still quiet.
 
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu

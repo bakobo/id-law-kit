@@ -308,6 +308,7 @@ def extract_thai(path, reader=None) -> str:
     pages = list((reader or _poppler_pages)(Path(path)))
     _gate(pages)
 
+    # Which rule takes a Thai cover page's standard number is undiagnosed: ~6key.
     pages = [strip_gazette_furniture(page) for page in strip_repeated_furniture(pages)]
     text = normalise_text("\n".join(pages).replace("\f", "\n"))
     text = repair_marks(compose_sara_am(text))

@@ -29,10 +29,11 @@ from pathlib import Path
 
 from .errors import LawcorpusError
 from .normalise import DIGITS, fold_digits, looks_cjk, normalise_text
+from .textloss import refuse_fabrication
 
-# How many lines at each edge of a page `_PAGE_NUMBER` may reach. Position is the only evidence
-# that rule has — a line which is nothing but a number is furniture *because* it sits at the edge —
-# so its window stays tight. See @kbdz5bmq.
+# How many lines at each edge of a page a page number may be looked for in. The window says where
+# a page number would be if there were one; it is not evidence that the line found there is one.
+# That evidence is a numbering run — see `_numbering_offsets` and @fu7njgwq.
 EDGE_LINES = 3
 # How many lines at each edge the two rules that prove furniture from repetition may reach. They
 # carry their own evidence and do not need position to supply it, which is what lets them see past
@@ -103,7 +104,16 @@ STRUCTURAL_OPENERS = {
     "indonesian": r"""
         BAB\b | BAGIAN\b | Bagian\b | PARAGRAF\b | Paragraf\b
       | PASAL\b | Pasal\b
-      | [a-z0-9]{1,3}\.[ \t]        # a.  1.  12.  — the space is what keeps a decimal out
+      # A label, and nothing a word can be. `[a-z0-9]{1,3}\.` used to stand here and matched
+      # `out. `, so an English sentence wrapping after "choice to opt-" opened a block and one of
+      # `ccpa`'s regulation sections was split down the middle; `in.` and `to.` qualify too. A
+      # label is a single letter, or a short run carrying a digit — which keeps this corpus's
+      # OCR-mangled numbers (`t4.` for `14.`, `2o8.` for `208.`) and admits no English word.
+      # The space after the stop is what keeps a decimal out. See @o3dodx44.
+      # The lookahead is @avcicqvb's, which the common-law entry above already carries: a label is
+      # followed by the thing it labels, and `2017.` alone on a line is a wrapped year.
+      | [a-z]\.(?=[ \t]+\S)                       # a.  b.
+      | [a-z0-9]{0,2}\d[a-z0-9]{0,2}\.(?=[ \t]+\S)   # 1.  12.  123.  t4.  284a.
       | MEMUTUSKAN | MENETAPKAN | Menimbang | Mengingat | Menetapkan
       | PRESIDEN\b | UNDANG-UNDANG\b | PERATURAN\b | PENJELASAN\b | LAMPIRAN\b
     """,
@@ -194,6 +204,60 @@ def _line_ranks(lines: list) -> tuple:
     return {index: rank for rank, index in enumerate(filled)}, len(filled)
 
 
+def _page_marks(pages: list) -> dict:
+    """Every edge line that is nothing but a number, keyed by page and line, with its value.
+
+    Built once and consulted by both halves of the page-number rule — the run-finding below and
+    the strip loop — so the window cannot come to mean one thing in the counting and another in
+    the dropping. That disagreement is the defect @kbdz5bmq found in the version before it.
+    """
+    marks = {}
+    for index, page in enumerate(pages):
+        lines = page.splitlines()
+        ranks, filled = _line_ranks(lines)
+        for position, line in enumerate(lines):
+            rank = ranks.get(position)
+            if rank is None or not (rank < EDGE_LINES or rank >= filled - EDGE_LINES):
+                continue
+            stripped = line.strip()
+            if _PAGE_NUMBER.match(stripped):
+                marks[(index, position)] = int(fold_digits(_DIGIT_RUN.search(stripped).group()))
+    return marks
+
+
+def _numbering_offsets(pages: list, marks: dict) -> set:
+    """The offsets at which this document's page numbers march with its pages.
+
+    A page number is the page's index plus a constant — 1 for a document numbered from its first
+    page, -24 for the explanatory part that restarts after it — so a real numbering run is a
+    **cohort** of edge numbers sharing one offset. Three things must hold before the cohort is
+    believed, and each was refuted on its own (@fu7njgwq):
+
+    * enough pages carry it, which is `MIN_FURNITURE_PAGES`, the floor every rule here uses;
+    * two of those pages are **adjacent**, because numbering advances one page at a time and two
+      numbers agreeing across a gap agree by coincidence;
+    * the offset is no larger than the document is long, because a 25-page instrument does not
+      begin at printed page 1995 — which is what `2016` and `2017`, wrapped onto lines of their
+      own on adjacent pages of `singapore-id`'s NRA 1965 RG 2, would otherwise claim.
+
+    Two footnote markers on adjacent pages, one greater than the other, still satisfy all three:
+    ~6mas. Without this the rule deletes on position alone, which is not evidence about the line
+    that is there. It cost four words of Singapore law, two footnote markers in a Japanese report — where
+    the rejoiner then welded one footnote onto another and made a sentence neither contains — and
+    a standard's number from both cover pages of a Thai one.
+    """
+    carrying = {}
+    for (index, _), value in marks.items():
+        carrying.setdefault(value - index, set()).add(index)
+    return {
+        offset
+        for offset, indices in carrying.items()
+        if abs(offset) <= len(pages)
+        and len(indices) >= MIN_FURNITURE_PAGES
+        and any(index + 1 in indices for index in indices)
+    }
+
+
 def _shape(line: str) -> str:
     """One line with its whitespace collapsed and every numeric field masked out."""
     return _MULTISPACE.sub(" ", _DIGIT_RUN.sub(_FIELD, line))
@@ -216,8 +280,8 @@ def _head_group(shape: str) -> tuple:
     return tuple(sorted(shape.replace(_FIELD, " ").split()))
 
 
-def _counts_up(values: list) -> bool:
-    """Does some one field strictly increase across the pages carrying this shape?
+def _counts_up(rows: list) -> bool:
+    """Does some one field advance at least one per page across the pages carrying this shape?
 
     Half of what makes the shape rule safe, and only half. "Constant except for a varying number"
     on its own also describes the edge rows of a long numbered table. @ly7tho4y claimed this was
@@ -225,14 +289,26 @@ def _counts_up(values: list) -> bool:
     a statute behaves that way" — and `indonesia-id` refuted it with `Pasal N`, which counts up
     with the pages exactly as a page number does. The other half is `_STRUCTURAL`, applied in
     `_furniture_shapes`. See @lbqi475m.
+
+    **Ascending alone is nearly free on two pages**, which is all `MIN_FURNITURE_PAGES` requires: a
+    field ascends by chance half the time, so a three-field template clears it seven times in
+    eight. So the rate is tested too, and against the **page indices** rather than the carrying
+    rows, which is what lets a head printed on alternate pages rise two per appearance and still
+    count one per page. `wef 03/10/2016]` and `wef 04/10/2016]` on pages 1 and 4 of seven rise 1
+    across 3 and are not counting pages: they are two amendment dates this rule deleted from a
+    Schedule. See @ykhhndj7.
     """
+    indices = [index for index, _ in rows]
+    values = [fields for _, fields in rows]
+    span = indices[-1] - indices[0]
     return any(
         all(row[field] < nxt[field] for row, nxt in zip(values, values[1:]))
+        and values[-1][field] - values[0][field] >= span
         for field in range(len(values[0]))
     )
 
 
-def _shape_candidates(pages: list) -> dict:
+def _shape_candidates(pages: list, structural) -> dict:
     """Every edge template that could be a running head, with the pages and field values it has.
 
     A line the package's structural grammar recognises is excluded here and nowhere else. That is
@@ -246,7 +322,7 @@ def _shape_candidates(pages: list) -> dict:
     for index, page in enumerate(pages):
         rows = {}
         for line in reversed(_edge_lines(page, FURNITURE_LINES)):
-            if _STRUCTURAL.match(line):
+            if structural.match(line):
                 continue
             shape = _shape(line)
             if _FIELD not in shape:
@@ -262,7 +338,7 @@ def _shape_candidates(pages: list) -> dict:
     return seen
 
 
-def _furniture_shapes(pages: list) -> set:
+def _furniture_shapes(pages: list, structural) -> set:
     """Shapes that recur across the pages they span with a page number embedded in them.
 
     `strip_repeated_furniture` matches a running head by its exact text, and a publisher that
@@ -280,8 +356,8 @@ def _furniture_shapes(pages: list) -> set:
     """
     bar = max(MIN_FURNITURE_PAGES, math.ceil(len(pages) * SHAPE_THRESHOLD))
     groups = {}
-    for shape, rows in _shape_candidates(pages).items():
-        if _counts_up([fields for _, fields in rows]):
+    for shape, rows in _shape_candidates(pages, structural).items():
+        if _counts_up(rows):
             groups.setdefault(_head_group(shape), []).append((shape, rows))
 
     furniture = set()
@@ -296,7 +372,7 @@ def _furniture_shapes(pages: list) -> set:
     return furniture
 
 
-def strip_repeated_furniture(pages: list) -> list:
+def strip_repeated_furniture(pages: list, *, traditions=()) -> list:
     """Drop running headers, footers, and page numbers.
 
     Frequency alone is not enough, and it fails in two directions. "Page 1 of 127" never repeats
@@ -306,18 +382,25 @@ def strip_repeated_furniture(pages: list) -> list:
     provision heading. Frequency is measured only at the *edges* of a page: a phrase appearing in
     the body of every page is a defined term, not furniture.
 
-    Two edge windows, not one. `_PAGE_NUMBER` has nothing but position to go on, so it keeps the
-    tight `EDGE_LINES`; the two rules that prove furniture from repetition across pages reach
+    Two edge windows, not one. A page number is looked for in the tight `EDGE_LINES`, because that
+    is where one would be; the two rules that prove furniture from repetition across pages reach
     `FURNITURE_LINES` deep, which is what lets them see a running head printed below a scanner's
     emblem. See @kbdz5bmq.
 
+    **Every rule here now proves its case from other pages.** Being at the edge is where a page
+    number is looked for and not why it is believed: a bare number is dropped only when the
+    document's other numbers march with the pages around it (`_numbering_offsets`, @fu7njgwq).
+    Position alone deleted a wrapped year from a table, and a footnote marker from a report.
+
     **All three rules match a whole line, and that is what makes dropping safe.** The text rule
     needs the entire line repeated across pages, the shape rule needs it repeated with only its
-    numeric fields varying, and `_PAGE_NUMBER` needs the line to be nothing but a number, so a line
-    carrying unique body text satisfies none of them and cannot be taken out from under a sentence.
+    numeric fields varying, and the page-number rule needs the line to be nothing but a number, so
+    a line carrying unique body text satisfies none of them and cannot be taken from under a
+    sentence.
     That is why this drops lines and `indonesia-id`'s `_FURNITURE_PREFIX`, which rewrites them, was
     not lifted: rewriting needs a rule about which part of a line to keep. See @zga5midk.
     """
+    structural = structural_pattern(*traditions)
     if len(pages) < 2:
         return list(pages)
 
@@ -328,30 +411,30 @@ def strip_repeated_furniture(pages: list) -> list:
 
     threshold = max(MIN_FURNITURE_PAGES, int(len(pages) * FURNITURE_THRESHOLD))
     furniture = {line for line, n in edge_counts.items() if n >= threshold}
-    shapes = _furniture_shapes(pages)
+    shapes = _furniture_shapes(pages, structural)
+    marks = _page_marks(pages)
+    offsets = _numbering_offsets(pages, marks)
 
     out = []
-    for page in pages:
+    for number, page in enumerate(pages):
         lines = page.splitlines()
         ranks, filled = _line_ranks(lines)
         keep = []
         for index, line in enumerate(lines):
             stripped = line.strip()
             rank = ranks.get(index)
-            at_edge = rank is not None and (rank < EDGE_LINES or rank >= filled - EDGE_LINES)
             deep = rank is not None and (
                 rank < FURNITURE_LINES or rank >= filled - FURNITURE_LINES
             )
-            if (deep and (stripped in furniture or _shape(stripped) in shapes)) or (
-                at_edge and _PAGE_NUMBER.match(stripped)
-            ):
+            marching = (number, index) in marks and marks[(number, index)] - number in offsets
+            if (deep and (stripped in furniture or _shape(stripped) in shapes)) or marching:
                 continue
             keep.append(line)
         out.append("\n".join(keep))
     return out
 
 
-def clean_pages(pages: list) -> str:
+def clean_pages(pages: list, *, traditions=()) -> str:
     """Turn extracted pages into one searchable document."""
     if not pages:
         raise PdfError(
@@ -376,16 +459,20 @@ def clean_pages(pages: list) -> str:
             "here: it writes spaces between words.)"
         )
 
-    text = "\n".join(strip_repeated_furniture(pages))
+    text = "\n".join(strip_repeated_furniture(pages, traditions=traditions))
     text = normalise_text(text.replace("\f", "\n"))
     text = "\n".join(line.rstrip() for line in text.splitlines())
-    text = _rejoin_wrapped_lines(text)
+    text = _rejoin_wrapped_lines(text, structural_pattern(*traditions))
     text = _MULTISPACE.sub(" ", text)
     text = _BLANKS.sub("\n\n", text)
-    return text.strip() + "\n"
+    text = text.strip() + "\n"
+    # @sqxbhlk2: everything above deletes lines or joins them with a space, so a token that is
+    # here and in no source page means a step rewrote text instead of dropping it.
+    refuse_fabrication("\n".join(pages), text, what="this PDF")
+    return text
 
 
-def _rejoin_wrapped_lines(text: str) -> str:
+def _rejoin_wrapped_lines(text: str, structural) -> str:
     """Undo the hard wrapping pdftotext inherits from the page.
 
     Left wrapped, a search for a phrase spanning a line break fails — the same silent-false-
@@ -397,7 +484,7 @@ def _rejoin_wrapped_lines(text: str) -> str:
             out
             and line.strip()
             and out[-1].strip()
-            and not _STRUCTURAL.match(line)
+            and not structural.match(line)
             and _UNTERMINATED.search(out[-1])
         ):
             out[-1] = out[-1].rstrip() + " " + line.strip()
@@ -507,7 +594,7 @@ def check_reading_order(raw_mode_pages: list, what: str = "this PDF") -> None:
     )
 
 
-def extract(path, layout: bool = True, verify_order: bool = False) -> str:
+def extract(path, layout: bool = True, verify_order: bool = False, *, traditions=()) -> str:
     """Extract `path` to text with poppler, then clean it.
 
     `verify_order=True` asks for @k76mmqlc's watermark check, which renders the document a second
@@ -521,7 +608,8 @@ def extract(path, layout: bool = True, verify_order: bool = False) -> str:
     reordering it was built for is real and is now undetected here; catching it needs geometry
     (`pdftotext -bbox`), not a statistic over the text.
     """
+    structural_pattern(*traditions)
     pages = raw_pages(path, layout)
     if layout and verify_order:
         check_reading_order(raw_pages(path, layout=False), str(path))
-    return clean_pages(pages)
+    return clean_pages(pages, traditions=traditions)

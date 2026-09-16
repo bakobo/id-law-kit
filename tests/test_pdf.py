@@ -438,6 +438,47 @@ class TestTheShapeRuleCountsThePagesAHeadCovers:
             assert "Gazette Volume" not in out, count
 
 
+class TestAPageNumberAdvancesAtLeastOncePerPage:
+    """@ykhhndj7 — two pages make "some field counts up" almost free, so ask how fast it counts."""
+
+    def test_an_amendment_date_on_two_pages_of_seven_is_not_a_running_head(self):
+        # singapore-id, PDPA Statutory Bodies Notification: `wef 03/10/2016]` and `wef 04/10/2016]`
+        # became a running head because the day of month ascends 3 -> 4 across pages 1 and 4. ~6wh3.
+        pages = [
+            "1. Some Statutory Board\n2. Another Board\nwef 03/10/2016]",
+            "Third entry in the Schedule\nFourth entry in the Schedule",
+            "Fifth entry in the Schedule\nSixth entry in the Schedule",
+            "62. [Deleted by S 700/2016\nwef 04/10/2016]",
+            "Seventh entry\nEighth entry",
+            "Ninth entry\nTenth entry",
+            "Eleventh entry\nTwelfth entry",
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "wef 03/10/2016]" in out
+        assert "wef 04/10/2016]" in out
+
+    def test_a_head_whose_number_keeps_pace_is_still_furniture(self):
+        pages = [f"2020 Ed.   Some Act 1965   {n}\nprovision {chr(96 + n)}" for n in range(1, 9)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Some Act 1965" not in out
+
+    def test_a_mirrored_head_on_alternate_pages_keeps_pace(self):
+        # The comparison is against page indices, not carrying rows, so a template that appears on
+        # every other page rises two per appearance and still counts one per page.
+        pages = [
+            (f"2020 Ed.   Some Act 1965   {n}" if n % 2 else f"{n}   Some Act 1965   2020 Ed.")
+            + f"\nprovision {chr(96 + n)}"
+            for n in range(1, 13)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Some Act 1965" not in out
+
+    def test_a_field_that_rises_slower_than_the_pages_is_not_a_page_number(self):
+        pages = [f"Annex reference 4/{n // 5 + 1}]\nbody text {chr(96 + n)}" for n in range(1, 13)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Annex reference" in out
+
+
 class TestTheShapeRuleNeverDeletesAProvisionHeading:
     """@lbqi475m — a Pasal heading counts up with the pages too, so the safety premise was false."""
 
@@ -529,6 +570,76 @@ class TestTheEdgeWindows:
         assert "RUNNING HEAD" not in out
 
 
+def _numbered(count, offset=1, marks=None):
+    """`count` pages, each carrying a bare number at its foot unless `marks` says otherwise.
+
+    The body carries no digits at all, so nothing in it can be read as a counting template and
+    the page-number rule is the only rule with anything to say about these pages.
+    """
+    words = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu".split()
+    pages = []
+    for index in range(count):
+        mark = marks.get(index) if marks is not None else index + offset
+        tag = words[index % len(words)]
+        body = "\n".join(f"The {tag} clause, {w}, of this instrument." for w in words[:5])
+        pages.append(f"An Act of some kind\n{body}\n{mark}" if mark is not None
+                     else f"An Act of some kind\n{body}")
+    return pages
+
+
+class TestAPageNumberMarchesWithThePages:
+    """@fu7njgwq — the one rule with no cross-page evidence gets some, in the form numbering takes."""
+
+    def test_a_run_of_page_numbers_is_still_stripped(self):
+        out = strip_repeated_furniture(_numbered(8))
+        assert all(page.splitlines()[-1].endswith("of this instrument.") for page in out)
+
+    def test_a_wrapped_year_at_a_page_foot_is_kept(self):
+        # singapore-id, NRA 1965 RG 2: the amendment-history table wraps an instrument's title
+        # across lines, and the bare year was deleted rather than rejoined. ~55kg.
+        pages = _numbered(25, marks={22: 2016, 23: 2017})
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "2016" in out and "2017" in out
+
+    def test_an_offset_beyond_the_documents_length_is_not_a_numbering_run(self):
+        # 2016 and 2017 on adjacent pages 22 and 23 share the offset 1994 and are adjacent, so
+        # support and adjacency both pass. A 25-page document does not begin at printed page 1995.
+        pages = _numbered(25, marks=dict.fromkeys(range(25)) | {22: 2016, 23: 2017})
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "2016" in out and "2017" in out
+
+    def test_a_lone_number_on_a_cover_page_is_kept(self):
+        pages = _numbered(6, marks={0: 1})
+        assert "1" in "\n".join(strip_repeated_furniture(pages)).splitlines()
+
+    def test_two_numbers_agreeing_by_coincidence_are_kept(self):
+        # Value 5 on page 2 and value 53 on page 50 share an offset of 3 and prove nothing.
+        pages = _numbered(60, marks={2: 5, 50: 53})
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "\n5\n" in out + "\n" and "\n53\n" in out + "\n"
+
+    def test_a_second_numbering_run_is_its_own_cohort(self):
+        # indonesia-id: UU 11/2008 numbers its Penjelasan from 1 again, so one document holds two
+        # runs at offsets 1 and -24. Both are real, and neither may cost the other.
+        marks = {index: index + 1 for index in range(20)}
+        marks.update({index: index - 19 for index in range(20, 40)})
+        out = strip_repeated_furniture(_numbered(40, marks=marks))
+        assert all(page.splitlines()[-1].endswith("of this instrument.") for page in out)
+
+    def test_a_sparse_run_is_still_a_run(self):
+        # UU 12/2011: poppler finds 19 of the numbers across a span of 48 pages, which is real
+        # numbering seen imperfectly rather than a coincidence.
+        marks = {index: index + 1 for index in range(0, 48, 2)}
+        out = "\n".join(strip_repeated_furniture(_numbered(48, marks=marks)))
+        assert "\n47\n" not in out + "\n"
+
+    def test_a_numbering_run_needs_two_adjacent_pages(self):
+        # Every number in this document agrees on one offset, but no two of them are neighbours.
+        marks = {index: index + 1 for index in range(0, 30, 3)}
+        out = "\n".join(strip_repeated_furniture(_numbered(30, marks=marks)))
+        assert "\n28\n" in out + "\n"
+
+
 class TestStructuralOpenersPerTradition:
     """@zzqzaku4 — the opener list was number-leading, and most of the world puts the label first."""
 
@@ -590,6 +701,53 @@ class TestStructuralOpenersPerTradition:
     def test_a_subset_of_traditions_can_be_asked_for(self):
         assert structural_pattern("common-law").match("23A.—(1)")
         assert not structural_pattern("common-law").match("Pasal 13")
+
+
+class TestAListLabelIsNotAWord:
+    """@o3dodx44 — `[a-z0-9]{1,3}\\.` is `a.` and `12.` and also `out.`, which split a sentence."""
+
+    @pytest.mark.parametrize("line", ["out. Illustrative examples", "in. The business", "to. A"])
+    def test_an_english_word_at_the_head_of_a_wrapped_line_is_not_an_opener(self, line):
+        assert not structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["a. bahwa", "z. tanggal", "1. Ketentuan", "123. Pasal"])
+    def test_a_real_label_is_still_an_opener(self, line):
+        assert structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["t4. Layanan", "2o8. Jika pasal", "284a. Naskah"])
+    def test_an_ocr_mangled_number_is_still_a_label(self, line):
+        # indonesia-id's scans render 14. as t4. and 208. as 2o8. No English word carries a digit.
+        assert structural_pattern().match(line), line
+
+    def test_the_sentence_ccpa_lost_is_rejoined(self):
+        pages = [
+            "impairing a consumer's choice to opt-\nout. Illustrative examples follow:\nEnd one.",
+            "A second page of the regulations.\nWith a second line of text.\nEnd two.",
+        ]
+        # The rejoiner always joins with a space, so the hyphen stays; what the fix changes is that
+        # `out.` no longer opens a block, leaving the sentence severed at the line break.
+        assert "\nout. Illustrative" not in clean_pages(pages)
+        assert "opt- out. Illustrative examples follow:" in clean_pages(pages)
+
+    def test_a_caller_can_name_the_traditions_the_document_is_written_in(self):
+        pages = [
+            "A first line of text.\nmeans the California\nPasal 12\nEnd one.",
+            "A second page of the regulations.\nWith a second line of text.\nEnd two.",
+        ]
+        assert "\nPasal 12" in clean_pages(pages)
+        assert "\nPasal 12" not in clean_pages(pages, traditions=("common-law",))
+
+    def test_an_unknown_tradition_is_refused_at_every_door(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        with pytest.raises(UnknownTraditionError):
+            clean_pages(["a", "b"], traditions=("klingon",))
+        with pytest.raises(UnknownTraditionError):
+            strip_repeated_furniture(["a", "b"], traditions=("klingon",))
+        pdf = tmp_path / "a.pdf"
+        pdf.write_bytes(minimal_pdf([["SECTION ONE", "The business shall comply."]]))
+        with pytest.raises(UnknownTraditionError):
+            extract(pdf, traditions=("klingon",))
 
     def test_an_unknown_tradition_is_refused_rather_than_ignored(self):
         with pytest.raises(UnknownTraditionError) as excinfo:
