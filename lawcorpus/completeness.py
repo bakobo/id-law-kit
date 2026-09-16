@@ -72,8 +72,19 @@ def _roman(raw: str) -> int:
     return total
 
 
-def _kanji(raw: str) -> int:
-    """Japanese article numbers are written in kanji, always. `第57条` returns zero hits."""
+def kanji_number(raw: str) -> int:
+    """Read a CJK numeral — `五十七` is 57. Japanese article numbers are written this way, always.
+
+    Public because a caller that needs one number has no other way to reach this, and the
+    alternative it reaches for is assembling a fake heading (`scan("第五十七条", "第",
+    numerals="kanji")[0]`) to get at a private parser. Not Japanese but CJK: the same characters
+    number Chinese provisions. Korean statutes use arabic digits and need nothing here. See
+    this.i @ooyin3yr.
+
+    Covers 一..九, 十 and 百, which is the whole range article numbering uses. 千 and above are
+    refused rather than guessed at, for the reason every oracle here refuses: a reader that invents
+    an answer produces an expectation that passes documents it should not.
+    """
     total, current, hundreds = 0, 0, 0
     for ch in raw:
         if ch in _KANJI_DIGITS:
@@ -99,12 +110,31 @@ def _kanji(raw: str) -> int:
 _NUMERALS = {
     "arabic": (r"(\d{1,4})", _arabic),
     "roman": (r"([IVXLCDMivxlcdm]{1,9})\b", _roman),
-    "kanji": (r"([一二三四五六七八九十百]{1,6})条", _kanji),
+    "kanji": (r"([一二三四五六七八九十百]{1,6})条", kanji_number),
     "thai": (r"([๐-๙\d]{1,4})", _thai),
 }
 
 
-def scan(text: str, label: str, numerals: str = "arabic") -> list:
+def _bounded(text: str, boundary: str) -> str:
+    """Everything before the first line matching `boundary`, or all of it if none does."""
+    if not boundary:
+        return text
+    try:
+        rx = re.compile(boundary)
+    except re.error as e:
+        raise OracleError(
+            f"The boundary '{str(boundary)[:40]}' is not a regular expression: {e}. It marks where "
+            f"the main body ends, so an unusable one would silently scan the schedules too."
+        ) from e
+    out = []
+    for line in text.splitlines(keepends=True):
+        if rx.search(line):
+            break
+        out.append(line)
+    return "".join(out)
+
+
+def scan(text: str, label: str, numerals: str = "arabic", boundary: str = "") -> list:
     """Every provision number appearing as a heading, in document order.
 
     **Line-anchored, deliberately.** `มาตรา ๑๗๕` inside a sentence is a cross-reference to another
@@ -114,6 +144,13 @@ def scan(text: str, label: str, numerals: str = "arabic") -> list:
 
     Duplicates are kept, because a heading appearing twice is itself a signal — a running header
     landing mid-list produced exactly that in UU 28/2014.
+
+    `boundary` is a regex marking the line where the main body ends; the scan stops there.
+    Japanese 附則, a UK schedule, a French annexe and a US appendix all restart their numbering, so
+    an unbounded scan reads a correct document as out of order. Bounding rather than tolerating a
+    descending step matters twice: a descending step is also what an OCR misread of a heading looks
+    like, and a provision surviving only inside a schedule must not satisfy a declaration about the
+    main body. See this.i @qd6p2f3x.
     """
     if numerals not in _NUMERALS:
         raise OracleError(
@@ -122,7 +159,7 @@ def scan(text: str, label: str, numerals: str = "arabic") -> list:
         )
     pattern, read = _NUMERALS[numerals]
     rx = re.compile(rf"^[ \t]*{re.escape(label)}[ \t　]*{pattern}", re.MULTILINE)
-    return [read(m.group(1)) for m in rx.finditer(text)]
+    return [read(m.group(1)) for m in rx.finditer(_bounded(text, boundary))]
 
 
 @dataclass(frozen=True)
@@ -133,10 +170,24 @@ class Expectation:
     numbers: tuple
     numerals: str = "arabic"
     source: str = ""
+    boundary: str = ""
 
     @classmethod
-    def over(cls, label, numbers, numerals: str = "arabic", source: str = "") -> "Expectation":
-        return cls(label=label, numbers=tuple(numbers), numerals=numerals, source=source)
+    def over(
+        cls,
+        label,
+        numbers,
+        numerals: str = "arabic",
+        source: str = "",
+        boundary: str = "",
+    ) -> "Expectation":
+        return cls(
+            label=label,
+            numbers=tuple(numbers),
+            numerals=numerals,
+            source=source,
+            boundary=boundary,
+        )
 
     def verify(self, text: str) -> None:
         """Raise unless `text` carries every declared provision, in order.
@@ -144,7 +195,7 @@ class Expectation:
         Returns None on success, so it reads as an assertion at a call site rather than as a
         predicate somebody might forget to test.
         """
-        found = scan(text, self.label, self.numerals)
+        found = scan(text, self.label, self.numerals, self.boundary)
         present = set(found)
         missing = [n for n in self.numbers if n not in present]
         last = max(found) if found else None
@@ -154,11 +205,20 @@ class Expectation:
         if not missing and not out_of_order:
             return None
 
-        parts = [
-            f"Refusing this extraction: it does not match the structure declared for it. "
-            f"{len(present & set(self.numbers))} of {len(self.numbers)} declared "
-            f"'{self.label}' provisions are present."
-        ]
+        if self.numbers:
+            parts = [
+                f"Refusing this extraction: it does not match the structure declared for it. "
+                f"{len(present & set(self.numbers))} of {len(self.numbers)} declared "
+                f"'{self.label}' provisions are present."
+            ]
+        else:
+            # A partial instrument declares nothing, so "0 of 0 are present" would read as a
+            # complete loss rather than as the only check there was.
+            parts = [
+                f"Refusing this extraction: nothing was declared about which '{self.label}' "
+                f"provisions it should carry, because the source serves only part of this "
+                f"instrument — but the headings it does carry are not in ascending order."
+            ]
         if interior:
             parts.append(
                 f"Missing from the middle, with their neighbours present, so the text was damaged "
@@ -191,8 +251,40 @@ class Expectation:
 _TOC_GROUP = re.compile(r"\(([^)]*)\)")
 _TOC_ARTICLE = re.compile(r"第([^条()]{1,12})条")
 
+# 「第十条から第十五条まで　削除」 — consecutive repealed articles collapsed into a single heading. It
+# is ordinary Japanese drafting and it defeats a heading scan, which reads the first number and
+# then reports the other five missing.
+_COLLAPSED_TITLE = re.compile(
+    r"^第([一二三四五六七八九十百]{1,6})条から第([一二三四五六七八九十百]{1,6})条まで"
+)
 
-def japanese_article_range(toc: str) -> Expectation:
+# Where a Japanese instrument's main body ends. 附則 restarts at 第一条 in every supplementary block,
+# and an Act carries one per amending act. The ideographic space is optional because e-Gov writes
+# the heading as 「附　則」, letter-spacing the word (@ux7izhdj); the trailing form matches a renderer
+# that prefixes supplementary lines with a labelled 附則(令和七年法律第三十八号).
+SUPPLEMENTARY_BOUNDARY = r"^附[ \t　]?則"
+
+# Korea's equivalent. 부칙 restarts at 제1조 for the same reason 附則 does.
+KOREAN_SUPPLEMENTARY_BOUNDARY = r"^부[ \t]?칙"
+
+
+def _collapsed_articles(article_titles) -> set:
+    """The article numbers a collapsed heading stands for *after* the first, which is present.
+
+    Taken from the instrument's own `<ArticleTitle>` values, so it is still the publisher declaring
+    the shape. The alternative — emitting five headings the source does not contain so that the
+    count comes out — is an oracle editing its own evidence.
+    """
+    collapsed = set()
+    for title in article_titles or ():
+        match = _COLLAPSED_TITLE.match(" ".join(str(title).split()))
+        if match:
+            first, last = (kanji_number(g) for g in match.groups())
+            collapsed.update(range(first + 1, last + 1))
+    return collapsed
+
+
+def japanese_article_range(toc: str, article_titles=(), partial: bool = False) -> Expectation:
     """Japan's oracle, which ships inside every instrument.
 
     e-Gov serves a `<TOC>` whose `<ArticleRange>` values state the article span of each chapter —
@@ -202,11 +294,22 @@ def japanese_article_range(toc: str) -> Expectation:
 
     `―` (U+2015) joins the ends of a range; `・` (U+30FB) lists two articles. Branch articles
     (枝番, 第六条の二) read as their base, so the range ends at article 6.
+
+    Two shapes made a correct document read as damaged, and both are handled here rather than in
+    each Japanese corpus's harvester (this.i @y3aozl55):
+
+    - `article_titles` — pass the instrument's `<ArticleTitle>` values and a collapsed repeal
+      range, 「第十条から第十五条まで　削除」, drops the articles it stands for from the expectation.
+    - `partial` — set it for a `<MainProvision Extract="true">` response, where e-Gov serves part of
+      an instrument whose table of contents still describes the whole. The declared set is dropped
+      and **only ordering is checked**, which is nearly nothing and is still worth running: order is
+      what caught a renderer dropping sub-item numbers, where 「第九条第四号に掲げる…」 read as article
+      9 arriving after article 10.
     """
     numbers = set()
     for group in _TOC_GROUP.finditer(normalise_text(toc)):
         body = group.group(1)
-        found = [_kanji(m.group(1)) for m in _TOC_ARTICLE.finditer(body)]
+        found = [kanji_number(m.group(1)) for m in _TOC_ARTICLE.finditer(body)]
         if not found:
             continue
         if "―" in body or "—" in body or "-" in body:
@@ -219,11 +322,37 @@ def japanese_article_range(toc: str) -> Expectation:
             "expectation would silently pass every document, which is worse than having no oracle "
             "at all — check that the <TOC> element was retrieved whole."
         )
+
+    source = "the instrument's own <TOC><ArticleRange>, authored by e-Gov"
+    if partial:
+        return Expectation.over(
+            "第",
+            (),
+            numerals="kanji",
+            source=(
+                "nothing: e-Gov serves this instrument in part (MainProvision Extract=\"true\") "
+                "while its <TOC> describes the whole, so only the order of the articles present "
+                "is checked. This expectation cannot see a missing provision — cite the item as "
+                "（抄） and record it as a known gap."
+            ),
+            boundary=SUPPLEMENTARY_BOUNDARY,
+        )
+
+    collapsed = _collapsed_articles(article_titles)
+    if collapsed:
+        kept = sorted(n for n in numbers if n not in collapsed)
+        source = (
+            f"{source}, less {len(numbers) - len(kept)} article(s) the instrument itself collapses "
+            f"into a 「…から…まで　削除」 heading"
+        )
+        numbers = kept
+
     return Expectation.over(
         "第",
         sorted(numbers),
         numerals="kanji",
-        source="the instrument's own <TOC><ArticleRange>, authored by e-Gov",
+        source=source,
+        boundary=SUPPLEMENTARY_BOUNDARY,
     )
 
 
@@ -237,8 +366,12 @@ def korean_gapless(text: str) -> Expectation:
 
     Being self-derived, it catches an interior gap and is **blind to a truncated tail** — a cut
     tail simply lowers the maximum. Use it as one of two checks where the tail matters.
+
+    Bounded at 부칙, Korea's supplementary provisions, which restart at 제1조 the way Japan's 附則 do
+    (@qd6p2f3x). Derivation and verification use the same boundary, or the expectation would be
+    built from a different document than the one it checks.
     """
-    found = scan(text, "제", numerals="arabic")
+    found = scan(text, "제", numerals="arabic", boundary=KOREAN_SUPPLEMENTARY_BOUNDARY)
     if not found:
         raise OracleError(
             "No 제N조 article headings were found, so the gapless-numbering oracle has nothing to "
@@ -252,6 +385,7 @@ def korean_gapless(text: str) -> Expectation:
             "Korean gapless article numbering, where a repealed article survives as a 삭제 "
             "placeholder. Derived from the extraction, so it cannot see a truncated tail."
         ),
+        boundary=KOREAN_SUPPLEMENTARY_BOUNDARY,
     )
 
 

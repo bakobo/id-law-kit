@@ -245,3 +245,164 @@ class TestStoreRefusesOnMismatch:
         store = CorpusStore(tmp_path / "corpus")
         with pytest.raises(StoreError):
             store.write("x", "", expect=Expectation.over("Pasal", [1]))
+
+
+class TestABoundedScan:
+    """@qd6p2f3x — a schedule restarts the numbering, so the scan has to be able to stop."""
+
+    JAPANESE = "\n".join(
+        [
+            "第一条 この法律は...",
+            "第二条 この法律において...",
+            "第三条 国は...",
+            "附則",
+            "第一条 この法律は、公布の日から施行する。",
+            "第二条 経過措置は...",
+        ]
+    )
+
+    def test_an_unbounded_scan_reads_the_schedule_and_calls_it_out_of_order(self):
+        assert scan(self.JAPANESE, "第", numerals="kanji") == [1, 2, 3, 1, 2]
+
+    def test_a_boundary_stops_the_scan_at_the_line_that_matches(self):
+        assert scan(self.JAPANESE, "第", numerals="kanji", boundary=r"^附則") == [1, 2, 3]
+
+    def test_a_correct_document_with_a_schedule_verifies(self):
+        Expectation.over("第", [1, 2, 3], numerals="kanji", boundary=r"^附則").verify(self.JAPANESE)
+
+    def test_without_the_boundary_the_same_document_is_refused(self):
+        with pytest.raises(CompletenessError) as e:
+            Expectation.over("第", [1, 2, 3], numerals="kanji").verify(self.JAPANESE)
+        assert "out of order" in str(e.value)
+
+    def test_a_provision_surviving_only_in_the_schedule_does_not_count_as_present(self):
+        """The reason to bound rather than to tolerate: otherwise a lost article reads as present."""
+        text = "第一条 ...\n第三条 ...\n附則\n第二条 ..."
+        with pytest.raises(CompletenessError) as e:
+            Expectation.over("第", [1, 2, 3], numerals="kanji", boundary=r"^附則").verify(text)
+        assert "第 2" in str(e.value)
+
+    def test_a_boundary_that_matches_nothing_leaves_the_scan_whole(self):
+        assert scan("Article 1\nArticle 2", "Article", boundary=r"^SCHEDULE") == [1, 2]
+
+    def test_a_boundary_that_is_not_a_regex_is_an_oracle_failure(self):
+        with pytest.raises(OracleError) as e:
+            scan("Article 1", "Article", boundary="(unclosed")
+        assert "boundary" in str(e.value)
+
+    def test_the_boundary_travels_with_the_expectation_into_its_source_line(self):
+        e = Expectation.over("第", [1], numerals="kanji", boundary=r"^附則", source="the TOC")
+        assert e.boundary == r"^附則"
+
+
+class TestTheJapaneseOracleKnowsItsOwnSchedules:
+    TOC = "（第一条―第三条）"
+    BODY = "\n".join(["第一条 ...", "第二条 ...", "第三条 ...", "附　則", "第一条 ..."])
+
+    def test_it_bounds_itself_at_the_supplementary_provisions(self):
+        japanese_article_range(self.TOC).verify(self.BODY)
+
+    def test_the_boundary_reaches_the_letter_spaced_heading(self):
+        assert "附" in japanese_article_range(self.TOC).boundary
+
+    def test_it_also_reaches_the_label_prefixed_form(self):
+        body = self.BODY.replace("附　則", "附則(令和七年法律第三十八号)")
+        japanese_article_range(self.TOC).verify(body)
+
+
+class TestACollapsedRepealRange:
+    """「第十条から第十五条まで　削除」 — one heading standing for six articles. @y3aozl55."""
+
+    TOC = "（第一条―第十六条）"
+    BODY = "\n".join(
+        [f"第{n}条 ..." for n in "一二三四五六七八九"]
+        + ["第十条から第十五条まで 削除", "第十六条 ..."]
+    )
+
+    def test_without_the_titles_the_collapsed_articles_read_as_missing(self):
+        with pytest.raises(CompletenessError) as e:
+            japanese_article_range(self.TOC).verify(self.BODY)
+        assert "第 11" in str(e.value)
+
+    def test_the_declared_titles_drop_them_from_the_expectation(self):
+        expectation = japanese_article_range(
+            self.TOC, article_titles=["第十条から第十五条まで", "第十六条"]
+        )
+        assert 11 not in expectation.numbers
+        assert 15 not in expectation.numbers
+        assert 10 in expectation.numbers  # the heading that is actually present
+        assert 16 in expectation.numbers
+
+    def test_the_source_says_how_many_were_dropped_and_why(self):
+        expectation = japanese_article_range(self.TOC, article_titles=["第十条から第十五条まで"])
+        assert "5" in expectation.source
+        assert "削除" in expectation.source or "collapse" in expectation.source
+
+    def test_an_ordinary_article_title_drops_nothing(self):
+        plain = japanese_article_range(self.TOC, article_titles=["第一条", "第十六条"])
+        assert plain.numbers == japanese_article_range(self.TOC).numbers
+
+    def test_a_document_declaring_the_range_now_verifies(self):
+        japanese_article_range(
+            self.TOC, article_titles=["第十条から第十五条まで"]
+        ).verify(self.BODY)
+
+
+class TestAPartialInstrument:
+    """e-Gov's `<MainProvision Extract="true">`: the TOC describes more than the response. @y3aozl55."""
+
+    TOC = "（第一条―第二十条）"
+
+    def test_the_declared_articles_are_dropped(self):
+        assert japanese_article_range(self.TOC, partial=True).numbers == ()
+
+    def test_a_part_of_the_instrument_no_longer_reads_as_damaged(self):
+        japanese_article_range(self.TOC, partial=True).verify("第一条 ...\n第十八条 ...")
+
+    def test_order_is_still_checked_because_that_is_what_is_left(self):
+        with pytest.raises(CompletenessError) as e:
+            japanese_article_range(self.TOC, partial=True).verify("第十八条 ...\n第一条 ...")
+        assert "order" in str(e.value)
+
+    def test_the_refusal_does_not_claim_zero_of_zero_provisions(self):
+        with pytest.raises(CompletenessError) as e:
+            japanese_article_range(self.TOC, partial=True).verify("第二条 ...\n第一条 ...")
+        assert "0 of 0" not in str(e.value)
+
+    def test_the_source_announces_that_it_checks_almost_nothing(self):
+        source = japanese_article_range(self.TOC, partial=True).source
+        assert "order" in source
+        assert "part" in source
+
+    def test_a_partial_instrument_still_needs_a_readable_toc(self):
+        with pytest.raises(OracleError):
+            japanese_article_range("(nothing here)", partial=True)
+
+
+class TestTheKoreanOracleIsBoundedToo:
+    def test_a_supplementary_block_no_longer_makes_a_document_out_of_order(self):
+        text = "제1조 ...\n제2조 ...\n부칙\n제1조 이 법은..."
+        korean_gapless(text).verify(text)
+
+    def test_the_schedule_does_not_raise_the_maximum(self):
+        text = "제1조 ...\n제2조 ...\n부칙\n제9조 ..."
+        assert korean_gapless(text).numbers == (1, 2)
+
+
+class TestThePublicKanjiReader:
+    """@ooyin3yr — a caller should not have to assemble a fake heading to reach a parser."""
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [("一", 1), ("十", 10), ("十五", 15), ("五十七", 57), ("百", 100), ("二百三十四", 234)],
+    )
+    def test_it_reads_a_number(self, raw, expected):
+        from lawcorpus.completeness import kanji_number
+
+        assert kanji_number(raw) == expected
+
+    def test_it_refuses_a_character_it_does_not_know(self):
+        from lawcorpus.completeness import kanji_number
+
+        with pytest.raises(OracleError):
+            kanji_number("五千")
