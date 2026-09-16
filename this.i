@@ -891,6 +891,47 @@ Shared method and tooling for the identity-law corpus programme = goal:
             over text it is about to store. Recorded rather than adopted, and it stays in that repo.
             Tradeoff: eight lines is still a number read off one scanner's emblem, and a page whose
             furniture runs deeper than that is unserved.
+          children:
+            Eight stays, and it is no longer one sample; and the dropping rules cannot bite = decision:
+              id: zga5midk
+              why: >
+                ~4cp4 recorded that `FURNITURE_LINES = 8` came from one Indonesian scanner's Garuda
+                and that nothing measured how deep furniture actually runs. Measured now across 24
+                PDFs from two corpora, by asking at what rank the repetition rule finds its
+                furniture at window depths of 3, 5, 8, 12 and 16.
+                The depth an ordinary document needs is **5**. `PP-40-2019` is the deepest sound
+                case; several Indonesian instruments need 4; `PERPRES-95-2018`, the Garuda document
+                the constant was read off, is served at 4 and gains exactly **one further line** at
+                a window of 12. Everything deeper than that in the sample is a watermarked India
+                Code PDF, whose glyph fragments pad the head of the page — the Constitution wants 11
+                and the 2021 Regulations 15 — and those are documents @uf4epdvm has just established
+                this package cannot store anyway. So eight sits above every sound document measured
+                and below the point where it would be chasing a watermark.
+                Kept at 8 as a default, and **not** made per-source. A per-source knob is a setting
+                every corpus must choose and none has evidence to choose with; the measurement says
+                the spread between traditions is 0 to 5, which one number covers. It is now backed
+                by sixteen sound PDFs from two corpora rather than by one emblem, which is the whole
+                of what ~4cp4 asked for. Rejected lowering it to 5 to match the measurement exactly,
+                which would leave no margin for the next scanner and buys nothing — the rules inside
+                the window carry their own proof, so a window wider than necessary costs nothing
+                that the evidence test does not already refuse.
+                **The line-dropping rules were checked for the harm that made `_FURNITURE_PREFIX`
+                unliftable**, since dropping a whole line that carries both furniture and text is
+                the same damage by another route as rewriting one. They cannot. All three are
+                whole-line identity rules — the text rule needs the entire line repeated on 60% of
+                pages, the shape rule needs it repeated with only its numeric fields varying, and
+                `_PAGE_NUMBER` needs the line to be nothing but a number — and a line carrying
+                unique body text satisfies none of them. Measured: across the same 24 documents, two
+                drop a line with six or more words, and both are running heads with the page number
+                printed inside them (`JUSTICE K. S. PUTTASWAMY (RETD.) v. UNION OF INDIA   309`,
+                `THE GAZETTE OF INDIA : EXTRAORDINARY   [PART II—SEC. 3(i)]`), which is @lbqi475m
+                working as intended. So there is no fourth debt here, and the asymmetry with
+                `_FURNITURE_PREFIX` is principled rather than lucky: rewriting a line needs a rule
+                about *which part* of it to keep, and dropping one does not.
+                Tradeoff: the residual hole is a line consisting of furniture beside a body fragment
+                that is **purely numeric**, since the shape rule masks numeric fields. Nothing in 24
+                documents shows one, and a body fragment that is only a number carries no meaning to
+                lose.
 
     A watermarked PDF is refused, because neither rendering of it is trustworthy = decision:
       id: k76mmqlc
