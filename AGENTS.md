@@ -90,6 +90,12 @@ Requires **poppler-utils** on PATH (`pdftotext`) for `lawcorpus/pdf.py`. Without
 tests skip, which would quietly drop coverage below the gate rather than failing loudly — CI
 installs it explicitly for that reason.
 
+`lawcorpus/fetch/browser.py` needs no such thing for its unit tests: Playwright is an optional
+extra (`pip install -e '.[browser]'` plus `playwright install chromium`), and every line of the
+module — the adapter included — is covered with the browser faked, so the gate holds on a machine
+that has never seen a browser. Only the `network`-marked canaries need the real one, and they skip
+without it.
+
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/python -m pytest --cov        # the gate CI runs

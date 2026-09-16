@@ -59,6 +59,8 @@ lawcorpus/formex.py        Formex XML -> citable text (articles, recitals, parag
 lawcorpus/caml.py          CAML XML -> citable text (California codified sections)
 lawcorpus/pdf.py           PDF -> citable text via poppler, with running-furniture removal
 lawcorpus/fetch/eurlex.py  EUR-Lex / Cellar fetcher, shared by eu-data-law and eidas-eudi
+lawcorpus/fetch/browser.py browser fetcher for challenge-fronted and JS-rendered sources
+                           (optional: `pip install 'lawcorpus[browser]'`)
 docs/method.md             how the research is done — read before adding to any corpus repo
 docs/taxonomy.md           the duty taxonomy, the authority ladder, the validity vocabulary
 docs/questions.md          the shared question spine, so findings are comparable across regimes
@@ -74,6 +76,19 @@ parses cleanly and also contains no law.
 
 `EurLexFetcher.fetch_formex()` handles both traps. `Accept-Language` is mandatory on every request;
 omitting it returns HTTP 400 with a plain-text explanation.
+
+## A second thing, if you reach for the browser fetcher
+
+`lawcorpus.fetch.browser` exists for two obstacles only: a Cloudflare challenge on a site's HTML
+routes (Thailand's Royal Gazette serves `/documents/<id>.pdf` while challenging everything else),
+and a page that renders client-side with no API behind it (`bora.dopa.go.th`). **It does not help
+with a blocked socket** — `peraturan.go.id` black-holes the TCP SYN and every `kemendagri.go.id`
+host is blocked outright, and Chromium reaches those exactly as well as curl does. The remedy there
+is a different egress, not a different client.
+
+It refuses rather than returns when a host says no, and it does not solve challenges. Where a
+source permits automation only within hours — Singapore's SSO terms clause (13)(d), 3–7 a.m. SGT —
+declare an `AccessWindow` and the fetch is refused outside it before the browser starts.
 
 ## The manifest
 
