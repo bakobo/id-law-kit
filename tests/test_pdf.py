@@ -12,7 +12,17 @@ broken.
 
 import pytest
 
-from lawcorpus.pdf import PdfError, clean_pages, strip_repeated_furniture
+from lawcorpus.pdf import (
+    STRUCTURAL_OPENERS,
+    PdfError,
+    ReadingOrderError,
+    UnknownTraditionError,
+    clean_pages,
+    check_reading_order,
+    strip_repeated_furniture,
+    structural_pattern,
+    watermark_share,
+)
 
 PAGES = [
     "TEXT OF REGULATIONS\n\n§ 7001. Definitions.\n\n(a) 'Agency' means the California\n"
@@ -316,3 +326,333 @@ class TestFurnitureWithAnEmbeddedPageNumber:
         pages = [f"หน้า ๔{d}   ราชกิจจานุเบกษา\nเนื้อหา {d}" for d in "๑๒๓๔"]
         out = "\n".join(strip_repeated_furniture(pages))
         assert "ราชกิจจานุเบกษา" not in out
+
+
+class TestTheShapeRuleCountsThePagesAHeadCovers:
+    """@lbqi475m — the denominator was every page, and only pages carrying a head can vote."""
+
+    def test_a_mirrored_head_survives_front_matter_that_does_not_carry_it(self):
+        # singapore-id, Interpretation Act 1965: 63 pages of which 18 are front matter with no
+        # running head, mirrored templates on 22 and 23 of the remaining 45, against a bar of 25.
+        front = [f"ARRANGEMENT OF SECTIONS\nsection {n} is listed here" for n in range(1, 19)]
+        body = [
+            (
+                f"2020 Ed.   Interpretation Act 1965   {n}"
+                if n % 2 == 0
+                else f"{n}   Interpretation Act 1965   2020 Ed."
+            )
+            + f"\nprovision text {chr(96 + n - 18)} of the Act"
+            for n in range(19, 64)
+        ]
+        out = "\n".join(strip_repeated_furniture(front + body))
+        assert "Interpretation Act 1965" not in out
+        assert "provision text a of the Act" in out
+        assert "section 1 is listed here" in out
+
+    def test_a_template_confined_to_a_corner_of_a_document_is_still_kept(self):
+        # The span must itself reach the document, or a template on pages 1 and 2 of sixty scores
+        # two of two and is deleted.
+        pages = [f"Table {n} follows\nbody {n}" for n in range(1, 3)] + [
+            f"unrelated {n}\nbody {n}" for n in range(3, 61)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("Table") == 2
+
+    def test_a_mirrored_head_is_stripped_on_a_two_page_document(self):
+        # japan-id measured the old floor stripping a mirrored head on 0 of 2 pages and 2 of 3,
+        # because each half holds only half the evidence and the floor is an absolute 2.
+        pages = [
+            "Gazette   Ministry of Justice   1\nfirst provision text",
+            "2   Ministry of Justice   Gazette\nsecond provision text",
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Ministry of Justice" not in out
+        assert "first provision text" in out
+        assert "second provision text" in out
+
+    def test_a_mirrored_head_is_stripped_on_a_three_page_document(self):
+        pages = [
+            "Gazette   Ministry of Justice   1\nfirst provision text",
+            "2   Ministry of Justice   Gazette\nsecond provision text",
+            "Gazette   Ministry of Justice   3\nthird provision text",
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Ministry of Justice" not in out
+        assert "third provision text" in out
+
+    def test_a_non_mirrored_head_still_fires_at_every_length_from_two_up(self):
+        # indonesia-id measured the rule firing at every length from 2 to 11 pages, and that must
+        # stay true: the floor is right for a head that appears on every page.
+        for count in range(2, 12):
+            pages = [f"Gazette Volume 4 page {n}\nbody text {n}" for n in range(1, count + 1)]
+            out = "\n".join(strip_repeated_furniture(pages))
+            assert "Gazette Volume" not in out, count
+
+
+class TestTheShapeRuleNeverDeletesAProvisionHeading:
+    """@lbqi475m — a Pasal heading counts up with the pages too, so the safety premise was false."""
+
+    def test_an_article_heading_that_counts_up_with_the_pages_is_kept(self):
+        # indonesia-id, on a synthetic statute at 6, 12 and 40 pages: 0 of 40 headings kept.
+        pages = [
+            f"Pasal {n}\n"
+            + "\n".join(f"Uraian {chr(96 + n)}{k} tentang ketentuan ini." for k in range(1, 6))
+            for n in range(1, 41)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("Pasal ") == 40
+
+    def test_a_chapter_heading_that_counts_up_with_the_pages_is_kept(self):
+        pages = [
+            f"BAB {n}\n" + "\n".join(f"Uraian {chr(96 + n)}{k} lebih lanjut." for k in range(1, 6))
+            for n in range(1, 13)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("BAB ") == 12
+
+    def test_a_japanese_article_heading_that_counts_up_is_kept(self):
+        pages = [f"第{n}条\n規定の内容{chr(96 + n)}について。" for n in range(1, 13)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("条") == 12
+
+    def test_a_repeated_all_caps_running_head_still_goes_by_the_text_rule(self):
+        # The exclusion is applied to the shape rule only: identical text on most pages cannot be
+        # distinct provisions, so repetition of the literal string is proof in a way a shape is not.
+        pages = [
+            f"REPUBLIK INDONESIA\n- {n} -\nPasal {n}\nIsi ketentuan {chr(96 + n)} di sini."
+            for n in range(1, 13)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "REPUBLIK INDONESIA" not in out
+        assert out.count("Pasal ") == 12
+
+
+def _noisy_indonesian_pages(count: int = 12) -> list:
+    """Pages whose head is an emblem OCR'd into five lines of noise, as Perpres 95/2018's are."""
+    noise = "˝\n' '\n. ..\n|\n~ ~"
+    return [
+        f"{noise}\nREPUBLIK INDONESIA\n- {n} -\nPasal {n}\n"
+        + "\n".join(f"Uraian {chr(96 + n)}{k} tentang ketentuan ini." for k in range(1, 15))
+        for n in range(1, count + 1)
+    ]
+
+
+class TestTheEdgeWindows:
+    """@kbdz5bmq — two windows, because only the page-number rule is evidence-free."""
+
+    def test_a_running_head_below_five_lines_of_scanner_noise_is_stripped(self):
+        # indonesia-id, Perpres 95/2018: 0 of 112 REPUBLIK INDONESIA heads stripped, because the
+        # emblem OCRs into three to six lines and the head lands at line index 5 to 7.
+        out = "\n".join(strip_repeated_furniture(_noisy_indonesian_pages()))
+        assert "REPUBLIK INDONESIA" not in out
+
+    def test_a_page_marker_below_the_noise_goes_on_the_evidence_every_template_needs(self):
+        # 123 of 134 standalone -N- markers were left, and each survivor is an unterminated line
+        # the rejoiner then welds to the heading beneath it.
+        out = "\n".join(strip_repeated_furniture(_noisy_indonesian_pages()))
+        assert "- 7 -" not in out
+
+    def test_the_provision_headings_under_all_of_that_survive(self):
+        out = "\n".join(strip_repeated_furniture(_noisy_indonesian_pages()))
+        assert out.count("Pasal ") == 12
+        assert "Uraian a1 tentang ketentuan ini." in out
+
+    def test_a_bare_number_deep_in_a_page_is_not_a_page_number(self):
+        # Position is the only evidence _PAGE_NUMBER has, so it keeps the tight window. A constant
+        # number at depth does not count up, so the shape rule does not reach it either.
+        # The number differs per page and does not count up, so it is neither a repeated line nor
+        # a template with a rising field: nothing but its position could condemn it, and it is out
+        # of reach of the only rule that reads position.
+        marks = [42, 17, 88, 5, 63, 9, 71, 24, 96, 33, 50, 12]
+        pages = [
+            f"opening {chr(96 + n)} one\nopening {chr(96 + n)} two\nopening {chr(96 + n)} three\n"
+            f"opening {chr(96 + n)} four\n{marks[n - 1]}\n"
+            + "\n".join(f"body {chr(96 + n)}{k} of the page." for k in range(1, 9))
+            for n in range(1, 13)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert all(str(mark) in out for mark in marks)
+
+    def test_the_window_counts_the_same_lines_when_a_page_opens_with_blanks(self):
+        # _edge_lines counted non-blank lines while the strip loop counted raw ones.
+        pages = [f"\n\n\nRUNNING HEAD\nbody {chr(96 + n)} of the page." for n in range(1, 6)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "RUNNING HEAD" not in out
+
+
+class TestStructuralOpenersPerTradition:
+    """@zzqzaku4 — the opener list was number-leading, and most of the world puts the label first."""
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Pasal 13",
+            "Pasal 13A",
+            "PASAL 13",
+            "BAB I",
+            "BAB XVII",
+            "Bagian Kesatu",
+            "BAGIAN KEDUA",
+            "Paragraf 2",
+            "PARAGRAF 2",
+            "Menimbang:",
+            "Mengingat:",
+            "MEMUTUSKAN:",
+            "Menetapkan:",
+            "MENETAPKAN:",
+            "PRESIDEN REPUBLIK INDONESIA",
+            "UNDANG-UNDANG NOMOR 27 TAHUN 2022",
+            "PERATURAN PEMERINTAH",
+            "PENJELASAN",
+            "LAMPIRAN I",
+            "a. bahwa perlindungan data pribadi",
+            "1. Ketentuan umum",
+        ],
+    )
+    def test_an_indonesian_opener_is_structural(self, line):
+        assert structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["มาตรา ๗", "หมวด ๑", "ส่วนที่ ๒", "ภาค ๓", "ลักษณะ ๑"])
+    def test_a_thai_opener_is_structural(self, line):
+        assert structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["第十八条", "第18条", "第一章", "第二節", "第三款"])
+    def test_a_japanese_opener_is_structural(self, line):
+        assert structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["23A.", "§ 7001.", "(a) means", "ARTICLE III", "Note:"])
+    def test_a_common_law_opener_is_still_structural(self, line):
+        assert structural_pattern().match(line), line
+
+    def test_bab_one_is_the_case_the_all_caps_rule_cannot_reach(self):
+        # indonesia-id's sharpest observation: the all-caps rule matches BAB XVII and fails BAB I,
+        # which welds exactly the chapters an ordering check would have caught.
+        assert not structural_pattern("common-law").match("BAB I")
+        assert structural_pattern("common-law").match("BAB XVII")
+        assert structural_pattern("indonesian").match("BAB I")
+
+    def test_a_subset_of_traditions_can_be_asked_for(self):
+        assert structural_pattern("common-law").match("23A.")
+        assert not structural_pattern("common-law").match("Pasal 13")
+
+    def test_an_unknown_tradition_is_refused_rather_than_ignored(self):
+        with pytest.raises(UnknownTraditionError) as excinfo:
+            structural_pattern("javanese")
+        assert "javanese" in str(excinfo.value)
+        assert "indonesian" in str(excinfo.value)
+
+    def test_the_registry_names_the_four_traditions_the_programme_has_evidence_for(self):
+        assert set(STRUCTURAL_OPENERS) == {"common-law", "indonesian", "thai", "japanese"}
+
+    def test_an_indonesian_heading_is_not_welded_to_the_line_above(self):
+        out = clean_pages(["ditetapkan lebih lanjut oleh Menteri\nPasal 14\nSetiap orang berhak."])
+        assert "Menteri Pasal 14" not in out
+        assert "\nPasal 14" in out
+
+    def test_a_wrapped_indonesian_sentence_is_still_rejoined(self):
+        out = clean_pages(["setiap orang berhak atas pelindungan\ndata pribadi tentang dirinya."])
+        assert "pelindungan data pribadi tentang dirinya." in out
+
+    def test_a_numeric_template_that_is_not_a_page_marker_is_left_alone(self):
+        # A field and no letter, and not a page number either: a ratio, a date, a table cell. The
+        # shape rule admits a letterless template only when the whole line is a page marker.
+        pages = [f"{n}/4\nclause {chr(96 + n)} of the Schedule" for n in range(1, 13)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("/4") == 12
+
+    def test_a_template_that_is_sparse_across_the_span_it_covers_is_kept(self):
+        # Span and density are separate conditions: reaching from the first page to the last is
+        # not enough if the template is on two of the twenty pages between them.
+        pages = (
+            ["Annex 1 to the Order\nbody one"]
+            + [f"unrelated {chr(96 + n)}\nbody {chr(96 + n)}" for n in range(2, 20)]
+            + ["Annex 2 to the Order\nbody twenty"]
+        )
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert out.count("to the Order") == 2
+
+
+class TestAWatermarkedPdfIsRefused:
+    """@k76mmqlc — poppler renders a stamp as text in both modes, and neither can be stored."""
+
+    def _stamped(self, count=4):
+        return [
+            f"In\nSome ordinary provision text on page {n}.\ne\nod\nMore of the same text.\n"
+            for n in range(1, count + 1)
+        ]
+
+    def _clean(self, count=4):
+        return [f"Some ordinary provision text on page {n}.\nMore of the same text.\n"
+                for n in range(1, count + 1)]
+
+    def test_a_clean_document_carries_no_stamp(self):
+        assert watermark_share(self._clean()) == 0.0
+
+    def test_a_stamped_document_is_measured_page_by_page(self):
+        assert watermark_share(self._stamped()) == 1.0
+
+    def test_no_pages_at_all_is_not_a_stamp(self):
+        assert watermark_share([]) == 0.0
+
+    def test_a_clean_document_passes_the_check(self):
+        assert check_reading_order(self._clean()) is None
+
+    def test_a_stamped_document_is_refused_and_both_remedies_are_named(self):
+        with pytest.raises(ReadingOrderError) as excinfo:
+            check_reading_order(self._stamped(), "the 2021 Regulations")
+        message = str(excinfo.value)
+        assert "the 2021 Regulations" in message
+        assert "layout=False" in message
+        assert "publisher" in message
+
+    def test_a_stray_fragment_on_one_page_of_many_is_not_a_stamp(self):
+        # A watermark is stamped on every page. One page with a loose glyph is not one.
+        pages = self._clean(9) + ["Ib\nan isolated fragment on one page.\n"]
+        assert check_reading_order(pages) is None
+
+    def test_a_single_cjk_character_on_a_line_is_not_a_glyph(self):
+        # Vertical setting produces these constantly, and a guard whose first firing is wrong is
+        # the one that gets turned off.
+        pages = [f"条\n本規定の内容{n}について。\n" for n in range(1, 5)]
+        assert check_reading_order(pages) is None
+
+
+@pdftotext_required
+class TestExtractVerifiesTheReadingOrder:
+    def test_a_clean_pdf_still_extracts(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "clean.pdf"
+        pdf.write_bytes(minimal_pdf([["The business shall comply with this Part."]]))
+        assert "The business shall comply" in extract(pdf)
+
+    def test_a_stamped_pdf_is_refused(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "stamped.pdf"
+        pdf.write_bytes(
+            minimal_pdf([["In", f"Operative sentence {n} of the instrument.", "e"]
+                         for n in range(1, 5)])
+        )
+        with pytest.raises(ReadingOrderError):
+            extract(pdf)
+
+    def test_the_check_can_be_declined_by_a_caller_that_has_already_judged_it(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "stamped2.pdf"
+        pdf.write_bytes(
+            minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
+                         for c in "abcd"])
+        )
+        assert "Operative sentence" in extract(pdf, verify_order=False)
+
+    def test_raw_mode_is_not_checked_because_the_caller_has_chosen_it(self, tmp_path):
+        from lawcorpus.pdf import extract
+
+        pdf = tmp_path / "stamped3.pdf"
+        pdf.write_bytes(
+            minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
+                         for c in "abcd"])
+        )
+        assert "Operative sentence" in extract(pdf, layout=False)

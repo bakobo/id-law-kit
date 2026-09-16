@@ -81,9 +81,10 @@ ASCII_DIGITS = "0123456789"
 # Deliberately a short declared list rather than every Unicode decimal script. A sixty-character
 # class per digit buys reach into corpora nobody holds; a script is added here in one line when a
 # corpus for it exists, and `tests/test_normalise.py` then asserts both folds agree about it.
-# CJK numerals are **not** here and are not a candidate: 第六条 is positional (十, 百), not ten
-# characters standing in for ten others, so reversing it into a query means generating every
-# spelling of a number. `completeness.kanji_number` reads that direction; see @4zotolb5.
+# CJK numerals are deliberately **not** here, and that is no longer a refusal: 第六条 is
+# positional (十, 百), so a kanji numeral is a multi-character token and cannot be a row in a
+# per-character table at all. It is folded by `normalise_query` as a token instead, through
+# `read_kanji_number` and `write_kanji_number` below. See @4zotolb5 and @kcznu7jq.
 NUMERAL_SYSTEMS = {
     "thai": "๐๑๒๓๔๕๖๗๘๙",
 }
@@ -102,12 +103,69 @@ _SPELLINGS = {
 _DIGIT_FOLD = str.maketrans({ch: ASCII_DIGITS[value] for ch, value in _DIGIT_VALUE.items()})
 DIGITS = "".join(sorted(_DIGIT_VALUE))
 
+# A kanji numeral is positional, so it is a token rather than ten characters standing in for ten
+# others — which is why it cannot live in `NUMERAL_SYSTEMS`. The range is 1..999, which is what
+# provision numbering uses and what this reader has always covered; 千 and above are refused rather
+# than guessed at. `japan-id` measured the spelling to be single-valued in statutory material: a
+# search for a non-positional form (第二三条 for 第二十三条) returns 0 hits in 27,376 kanji article
+# citations, so the inverse below is a function and not a generator. See @kcznu7jq.
+_KANJI_UNITS = {ch: n for n, ch in enumerate("一二三四五六七八九", start=1)}
+_UNIT_KANJI = {n: ch for ch, n in _KANJI_UNITS.items()}
+KANJI_NUMERALS = "".join(_KANJI_UNITS) + "十百"
+KANJI_MAX = 999
+
+
+def read_kanji_number(raw: str) -> int:
+    """Read a CJK numeral — `五十七` is 57.
+
+    Raises `ValueError` carrying the character it could not read, so a caller that owes its own
+    error type can name the offending character without parsing this one's prose.
+    """
+    total, current, hundreds = 0, 0, 0
+    for ch in raw:
+        if ch in _KANJI_UNITS:
+            current = _KANJI_UNITS[ch]
+        elif ch == "十":
+            total += (current or 1) * 10
+            current = 0
+        elif ch == "百":
+            hundreds += (current or 1) * 100
+            total, current = 0, 0
+        else:
+            raise ValueError(ch)
+    return hundreds + total + current
+
+
+def write_kanji_number(value: int) -> str:
+    """Spell a number the way a statute does — 57 is `五十七`.
+
+    The inverse of `read_kanji_number` over 1..999, and single-valued there. Refuses anything
+    outside that range rather than inventing a spelling, for the reason every reader here refuses.
+    """
+    if not isinstance(value, int) or not 1 <= value <= KANJI_MAX:
+        raise ValueError(value)
+    hundreds, rest = divmod(value, 100)
+    tens, units = divmod(rest, 10)
+    out = []
+    if hundreds:
+        out.append("" if hundreds == 1 else _UNIT_KANJI[hundreds])
+        out.append("百")
+    if tens:
+        out.append("" if tens == 1 else _UNIT_KANJI[tens])
+        out.append("十")
+    if units:
+        out.append(_UNIT_KANJI[units])
+    return "".join(out)
+
+
 _COMPARISON_TABLE = str.maketrans(
     {**LAYOUT_ONLY, **{ch: ASCII_DIGITS[v] for ch, v in _DIGIT_VALUE.items()},
      **{ch: _SEPARATOR_CANONICAL for ch in SEPARATORS}}
 )
 
 _WHITESPACE = re.compile(r"\s+")
+_ANY_DIGIT_RUN = re.compile(f"[{re.escape(DIGITS)}]+")
+_KANJI_RUN = re.compile(f"[{KANJI_NUMERALS}]+")
 
 # The scripts that write no space between words: hiragana, katakana, the CJK ideographs and their
 # extension A, plus the iteration mark and the long-vowel mark. **Hangul is deliberately absent** —
@@ -202,6 +260,51 @@ def _range_expansion(low: str, high: str) -> str:
     return "".join(spans)
 
 
+def _numeral_token(pattern: str, index: int):
+    """A whole numeral run at `index`, folded across scripts, or None if there is not one there.
+
+    The fourth scanner state @kcznu7jq is about. The three states `normalise_query` already tracks
+    decide *whether* to rewrite a character; this one decides how much of the pattern one rewrite
+    covers, because a kanji numeral is a multi-character token and a per-character substitution
+    cannot reach it.
+
+    Returns `(end, regex, head, tail)`. `head` and `tail` are the characters the rest of the
+    scanner should treat as standing at each end of what was consumed, so that @ux7izhdj's optional
+    space still lands between 第 and the numeral and between the numeral and 条 — which it must,
+    because the caller may have typed the arabic spelling of a heading e-Gov letter-spaces.
+
+    A kanji run is folded only when it is the canonical spelling of what it reads. `二三` reads as 3
+    under the positional rules and is not how 3 or 23 is written, so it keeps its own characters
+    rather than being given a wrong arabic alternative.
+    """
+    match = _ANY_DIGIT_RUN.match(pattern, index)
+    if match:
+        run = match.group()
+        members = "".join(f"[{_SPELLINGS[ch]}]" for ch in run)
+        try:
+            kanji = write_kanji_number(int(run.translate(_DIGIT_FOLD)))
+        except ValueError:
+            # Outside 1..999: no kanji spelling this package will invent, so the per-character
+            # expansion @4zotolb5 built is the whole answer, exactly as before.
+            return match.end(), members, run[0], run[-1]
+        return match.end(), f"(?:{_letter_spaced(kanji)}|{members})", kanji[0], kanji[-1]
+
+    match = _KANJI_RUN.match(pattern, index)
+    if match:
+        run = match.group()
+        value = read_kanji_number(run)
+        if not 1 <= value <= KANJI_MAX or write_kanji_number(value) != run:
+            return match.end(), _letter_spaced(run), run[0], run[-1]
+        members = "".join(f"[{_SPELLINGS[ch]}]" for ch in str(value))
+        return match.end(), f"(?:{_letter_spaced(run)}|{members})", run[0], run[-1]
+    return None
+
+
+def _letter_spaced(text: str) -> str:
+    """A CJK literal with @ux7izhdj's optional space between each pair of characters."""
+    return _LETTER_SPACE.join(text)
+
+
 def normalise_query(pattern: str) -> str:
     """Rewrite a search pattern so it can reach text that has been through `normalise_text`.
 
@@ -279,22 +382,29 @@ def normalise_query(pattern: str) -> str:
             else:
                 out.append(ch)
         else:
-            if is_cjk(ch) and is_cjk(previous):
-                out.append(_LETTER_SPACE)
-            if ch == "[":
-                in_class = True
-                out.append(ch)
-            elif ch == "{":
-                in_quantifier = True
-                out.append(ch)
-            elif ch in _DIGIT_VALUE:
-                out.append(f"[{_SPELLINGS[ch]}]")
-            elif ch in SEPARATORS:
-                out.append(_SEPARATOR_CLASS)
-            elif ch in LAYOUT_ONLY:
-                out.append(re.escape(LAYOUT_ONLY[ch]))
+            token = _numeral_token(pattern, index - 1)
+            if token:
+                # A whole numeral run, in either script, folded as one token. @kcznu7jq.
+                end, folded, head, tail = token
+                if is_cjk(head) and is_cjk(previous):
+                    out.append(_LETTER_SPACE)
+                out.append(folded)
+                index, ch = end, tail
             else:
-                out.append(ch)
+                if is_cjk(ch) and is_cjk(previous):
+                    out.append(_LETTER_SPACE)
+                if ch == "[":
+                    in_class = True
+                    out.append(ch)
+                elif ch == "{":
+                    in_quantifier = True
+                    out.append(ch)
+                elif ch in SEPARATORS:
+                    out.append(_SEPARATOR_CLASS)
+                elif ch in LAYOUT_ONLY:
+                    out.append(re.escape(LAYOUT_ONLY[ch]))
+                else:
+                    out.append(ch)
         previous = ch if not (escaped or in_class or in_quantifier) else ""
     return "".join(out)
 

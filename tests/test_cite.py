@@ -294,3 +294,37 @@ class TestCliArguments:
             main(["--corpus", str(corpus.root)])
         assert e.value.code == 2
         assert "grep" in capsys.readouterr().err
+
+
+class TestTheQualifierTravelsIntoGrepOutput:
+    """@fyh6u2nf — the qualifier was printed only for an item that is not quotable as current law,
+    so `indonesia-id`'s five re-OCR'd items, all of them in force, greped silently.
+    """
+
+    def _corpus_with_a_qualifier(self, tmp_path, qualifier):
+        root = tmp_path / "corpus"
+        store = CorpusStore(root)
+        written = store.write("uu27-2022", "Pasal 1 Setiap orang berhak atas pelindungan.\n")
+        Manifest(
+            [
+                item(
+                    item_id="uu27-2022",
+                    lang="ind",
+                    quotation_qualifier=qualifier,
+                    sha256=written.sha256,
+                    bytes=written.bytes,
+                )
+            ]
+        ).write(root / "MANIFEST.tsv")
+        return root
+
+    def test_an_in_force_item_carries_its_qualifier_on_every_hit(self, tmp_path, capsys):
+        root = self._corpus_with_a_qualifier(tmp_path, "teks hasil OCR ulang oleh Bakobo")
+        assert main(["--corpus", str(root), "--grep", "pelindungan"]) == 0
+        assert "teks hasil OCR ulang oleh Bakobo" in capsys.readouterr().out
+
+    def test_an_in_force_item_with_nothing_to_qualify_stays_quiet(self, tmp_path, capsys):
+        # Noise is what stops banners being read, so an in-force authentic item prints no mark.
+        root = self._corpus_with_a_qualifier(tmp_path, "")
+        assert main(["--corpus", str(root), "--grep", "pelindungan"]) == 0
+        assert "[in force]" not in capsys.readouterr().out

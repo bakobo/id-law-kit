@@ -14,7 +14,10 @@ from lawcorpus.normalise import (
     NUMERAL_SYSTEMS,
     SEPARATORS,
     fold_digits,
+    KANJI_MAX,
     normalise_query,
+    read_kanji_number,
+    write_kanji_number,
     normalise_text,
     search_key,
 )
@@ -258,7 +261,7 @@ class TestAQueryDigitIsExpandedWithoutBreakingTheRegex:
     """The price of @4zotolb5: `normalise_query` now tracks where in a regex it is standing."""
 
     def test_a_bare_digit_becomes_a_class_of_its_spellings(self):
-        assert normalise_query("7") == "[7๗]"
+        assert normalise_query("7") == "(?:\u4e03|[7๗])"
 
     def test_a_digit_range_in_a_class_gains_the_parallel_range(self):
         # The case @liv2lsxs refused the whole fold over.
@@ -279,7 +282,7 @@ class TestAQueryDigitIsExpandedWithoutBreakingTheRegex:
         assert normalise_query(r"(a)\1") == r"(a)\1"
 
     def test_an_escaped_class_delimiter_does_not_open_a_class(self):
-        assert normalise_query(r"\[7\]") == r"\[[7๗]\]"
+        assert normalise_query(r"\[7\]") == "\\[(?:\u4e03|[7๗])\\]"
 
     def test_a_range_whose_ends_are_from_different_systems_is_left_alone(self):
         assert normalise_query("[0-๙]") == "[0-๙]"
@@ -305,3 +308,79 @@ class TestAQueryDigitIsExpandedWithoutBreakingTheRegex:
 
     def test_an_unclosed_quantifier_brace_suppresses_the_fold_rather_than_corrupting_it(self):
         assert normalise_query("a{7") == "a{7"
+
+
+class TestTheKanjiNumeralFold:
+    """@kcznu7jq — `japan-id` measured 27,376 kanji article citations against 9 arabic ones in a
+    sibling corpus, eight of which are the provisions two findings rest on, and no query reached
+    both halves.
+    """
+
+    def test_the_reader_and_the_writer_are_inverses_across_the_whole_range(self):
+        for value in range(1, KANJI_MAX + 1):
+            assert read_kanji_number(write_kanji_number(value)) == value, value
+
+    @pytest.mark.parametrize(
+        "value,spelling",
+        [
+            (1, "一"),
+            (9, "九"),
+            (10, "十"),
+            (11, "十一"),
+            (20, "二十"),
+            (57, "五十七"),
+            (100, "百"),
+            (105, "百五"),
+            (110, "百十"),
+            (157, "百五十七"),
+            (999, "九百九十九"),
+        ],
+    )
+    def test_a_statute_spells_a_number_exactly_one_way(self, value, spelling):
+        assert write_kanji_number(value) == spelling
+        assert read_kanji_number(spelling) == value
+
+    @pytest.mark.parametrize("value", [0, -1, 1000, 100000, "7", None])
+    def test_a_value_outside_the_range_is_refused_rather_than_invented(self, value):
+        with pytest.raises(ValueError):
+            write_kanji_number(value)
+
+    def test_the_reader_names_the_character_it_could_not_read(self):
+        with pytest.raises(ValueError) as excinfo:
+            read_kanji_number("五千")
+        assert excinfo.value.args[0] == "千"
+
+    def test_an_arabic_citation_reaches_the_kanji_one(self):
+        # 第18条の2 is 番号法 第十八条の二, and nothing reached both spellings.
+        assert re.search(normalise_query("第18条の2"), "第十八条の二")
+
+    def test_a_kanji_citation_reaches_the_arabic_one(self):
+        assert re.search(normalise_query("第十八条の二"), "第18条の2")
+
+    def test_it_reaches_the_thai_spelling_too(self):
+        assert re.search(normalise_query("第57条"), "第๕๗条")
+
+    def test_a_number_outside_the_range_keeps_the_per_character_expansion(self):
+        # A year is not a provision number, and no kanji spelling is invented for it.
+        assert normalise_query("2016") == "[2๒][0๐][1๑][6๖]"
+
+    def test_a_kanji_run_that_is_not_a_canonical_spelling_is_left_alone(self):
+        # 二三 reads as 3 under the positional rules and is not how 3 or 23 is written, so giving
+        # it an arabic alternative would be giving it a wrong one.
+        assert "(?:" not in normalise_query("二三")
+
+    def test_the_letter_spacing_of_a_kanji_numeral_survives_the_fold(self):
+        # @ux7izhdj: e-Gov letter-spaces short headings, so the kanji branch carries the space too.
+        assert re.search(normalise_query("第18条"), "第 十 八 条")
+
+    def test_a_digit_inside_a_character_class_is_still_per_character(self):
+        # A class cannot hold a multi-character alternative, and nesting one would produce
+        # something that is not a class at all.
+        assert normalise_query("[0-9]") == "[0-9๐-๙]"
+        assert normalise_query("[37]") == "[3๓7๗]"
+
+    def test_a_digit_inside_a_quantifier_is_still_untouched(self):
+        assert normalise_query(r"\d{1,3}") == r"\d{1,3}"
+
+    def test_an_escaped_digit_is_still_a_backreference(self):
+        assert normalise_query(r"(a)\1") == r"(a)\1"

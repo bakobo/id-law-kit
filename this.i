@@ -223,6 +223,66 @@ Shared method and tooling for the identity-law corpus programme = goal:
             qualifier and print it, which is what a banner is for. The vocabulary question is
             reopened by a consumer that needs to *filter*, not by a third qualifier.
 
+          children:
+            The qualifier prints in grep output too, where it was invisible = decision:
+              id: fyh6u2nf
+              why: >
+                `cite.py --grep` printed an item's banners only when `quotable_as_current_law()` was
+                false, so for an in-force item it printed nothing — and the qualifier went with the
+                banners. `indonesia-id` verified it against five re-OCR'd items whose qualifier says
+                the text is our own OCR of the page images rather than the ministry's text layer:
+                all five are in force, so all five greps were silent about it. The field exists so a
+                qualification travels with every quotation, and hiding it in the most-used output
+                path is the one place that cannot be allowed.
+                Chose to separate the two questions rather than to print every banner on every line.
+                A validity banner answers "is this law", and for an in-force item the honest answer
+                is nothing worth a line on every hit. A qualifier answers "is this a faithful copy",
+                and that is as true of an in-force item as of a repealed one, because it is about
+                this copy rather than about the law — which is @ublm5oib's own reading of the field.
+                So `ManifestItem.marks()` carries every banner when the item may not be quoted as
+                current law, and everything below the validity line always — which is the
+                translation banner as well as the qualifier, because the same suppression hid both and they
+                are the same kind of thing. Singapore's SSO declares its own text unofficial and
+                Thailand's official English disclaims authority; both items are in force, so both
+                banners were suppressed in search output exactly as the qualifier was. The cut is
+                positional and it is not a coincidence: `banners()` puts the validity line first
+                because it is the only one that is about the *law*, and everything after it is
+                about this *copy*.
+                Rejected printing `banners()` unconditionally, which puts `[in force]` on every line
+                of every search in five corpora — noise, and noise is what stops banners being read
+                (@elsvh64d's own argument for why authentic text stays quiet). Rejected a flag,
+                because a qualification a caller can switch off is not a qualification.
+                Tradeoff: grep output now has two banner rules rather than one, and a reader who
+                sees no mark on a line is being told two things at once.
+
+        A translation with no artefact is excluded, not given a token = decision:
+          id: xyyn2mur
+          why: >
+            `aadhaar` found a case the vocabulary has no token for. UIDAI serves `/en/ovse` and
+            `/hi/ovse` with the *same English body* — 305,971 and 305,942 characters, eighteen
+            Devanagari characters in each — because the Hindi is rendered in the reader's browser by
+            a Bhashini widget after the response has been served. It is neither `machine`, since no
+            machine translation has been written down, nor absent, since a translation is being shown
+            to readers.
+            Chose not to grow the vocabulary. `translation_status` describes **an artefact this
+            corpus holds**: every token it carries answers "what is the provenance of these bytes",
+            and the chokepoints act on that answer — `quotable_as_evidence` refuses `machine`,
+            `banners()` names the original. A rendering that is never serialised has no bytes, no
+            digest, no `source_url` that returns it, and nothing for either chokepoint to act on. A
+            fifth token would be a status on an item that cannot exist, and the first harvester to
+            reach for it would create one.
+            The honest handling is exclusion, and `aadhaar` reached the same answer independently.
+            What the case is really evidence of belongs in the registry rather than the schema: a
+            claim sourced to "UIDAI's Hindi page" is unverifiable by construction, because two
+            readers can see different text at the same URL on the same day and neither can produce
+            the bytes. That is a sourcing rule, not a field.
+            Rejected `rendered` or `client-side` as a fifth token, for the reason above. Rejected
+            storing the English body under a `hin` lang with a qualifier saying the Hindi is
+            generated client-side, which records a language this item is not in — the guess
+            `translation_status` exists to refuse, wearing @ublm5oib's clothes.
+            Tradeoff: a corpus that wants to record *that* a client-side translation exists has
+            nowhere in the manifest to say so, and must say it in its own registry prose.
+
     Layout-only characters are normalised out of stored text = decision:
       id: f5mvj6
       why: >
@@ -356,6 +416,54 @@ Shared method and tooling for the identity-law corpus programme = goal:
                     be wrong about a regex, where before it could only be wrong about a character;
                     the states it tracks are the three that carry digits, and a `{` that is not a
                     quantifier suppresses the fold until the next `}` rather than corrupting it.
+
+                  children:
+                    A kanji numeral is a token, so the fold gained a fourth state = decision:
+                      id: kcznu7jq
+                      why: >
+                        @4zotolb5 declined a CJK numeral fold on the reasoning that a kanji numeral
+                        is positional, so reversing it would mean generating every spelling of a
+                        number. `japan-id` measured that half of the argument and it does not hold:
+                        a search for a non-positional spelling — 第二三条 for 第二十三条 — returns
+                        **0 hits in 27,376** kanji article citations, so 57 and 五十七 are one
+                        canonical string each way in this material and the inverse is a function
+                        rather than a generator.
+                        The cost of declining it is measured and it is the failure this package
+                        exists to prevent. `japan-id/corpus/` writes 27,376 kanji article citations
+                        against one arabic, and `corpus-specs/` writes zero kanji against nine
+                        arabic — and eight of those nine are 第18条の2, 第18条の3 and 第18条の4, which
+                        the statute writes 第十八条の二 to 第十八条の四 and which both of that repo's
+                        findings turn on. So 「第18条の2」 finds the Digital Agency documents and none
+                        of the law, 「第十八条の二」 finds the law and none of the Digital Agency
+                        documents, and neither result announces the half it cannot see.
+                        What @4zotolb5 is right about is the mechanism, and it is not a detail.
+                        `NUMERAL_SYSTEMS` substitutes **per character** into a character class, and a
+                        kanji numeral is a multi-character token, so it needs a non-capturing
+                        alternation — `(?:五十七|[5๕][7๗])` — which is a fourth scanner state on top of
+                        the three @4zotolb5 tracks. Chose to build it: at the top level the scanner
+                        now consumes a whole numeral *run* rather than one character, in either
+                        direction, and emits the alternation. The group is non-capturing, or it would
+                        renumber every backreference in the user's own pattern.
+                        Three limits, all stated rather than discovered. **Inside a character class
+                        the fold stays per-character**, because a class cannot hold a multi-character
+                        alternative and nesting one would produce something that is not a class —
+                        @liv2lsxs's hole in a new place. **The range is 1 to 999**, which is what
+                        `kanji_number` already reads and what provision numbering uses; a value
+                        outside it falls back to the existing per-character expansion rather than
+                        being guessed at. And **an unreadable kanji run is left exactly as it was**,
+                        so a query containing 千 or 〇 degrades to today's behaviour instead of
+                        raising at a user.
+                        The reader and the writer live in `normalise.py`, because that is where the
+                        numeral table is, and `completeness.kanji_number` keeps its published name
+                        and its `OracleError` by delegating to the reader. Rejected a second
+                        implementation beside the first, which is the duplication @s62c4j exists to
+                        end and would have let the two directions disagree.
+                        Tradeoff: every arabic number from 1 to 999 in every query now also matches
+                        its kanji spelling, so `Article 7` reaches `Article 七`. That is a false
+                        positive a reader sees the moment they open the hit, where what it replaces
+                        is a zero that reads as a finding — the trade this module already makes for
+                        @ux7izhdj's optional space. Query semantics change for every corpus repo;
+                        stored text does not.
 
     An extraction is refused unless it matches a declared structure = decision:
       id: zpycgven
@@ -522,6 +630,31 @@ Shared method and tooling for the identity-law corpus programme = goal:
             expressed as a line regex is not served here, and `_window` gives a caller no way to say
             "the second match" — recorded now rather than discovered by a corpus that needs it.
 
+        A round-number length with no terminator is a cap, not a document = decision:
+          id: k4w7rvit
+          why: >
+            India Code's own text bundle for the DPDP Rules 2025 stops at **exactly 100,000
+            characters**, mid-sentence, with no marker of any kind. `aadhaar` found it by comparing
+            lengths against its own extraction of the same PDF, and the reason an inventory check
+            could not find it is worth keeping: the instrument's trailing schedules restart their
+            numbering, so the missing tail contributes no heading the body has not already used, and
+            @zpycgven's oracle is blind to it by construction.
+            Chose the cheapest guard that needs nothing but the text: a length that is an exact
+            multiple of a thousand, or an exact power of two at or above 4096, **together with** an
+            ending that is not a sentence terminator. Either signal alone is worthless — a document
+            may end mid-sentence because its source is an excerpt, and one document in a thousand has
+            a round length by chance — and the conjunction is decisive, because a cap is the only
+            thing that produces both. It costs one comparison and no second document, which is what
+            makes it worth having in a package five repos share.
+            Rejected `aadhaar`'s own guard, which compares the publisher's text against our own
+            extraction of the same PDF and is a better test where both exist: it needs two renderings
+            of one instrument, which most sources do not offer, and its floor of 0.98 is calibrated
+            on one publisher's watermark loss. Recorded here so the next corpus knows the stronger
+            test exists; it stays in that repo. Rejected refusing on a round length alone, which
+            would refuse a document that happens to be 40,000 characters and end in a full stop.
+            Tradeoff: a cap at an unround number, or one that happens to land on a full stop, is
+            invisible to this. It is a cheap check for a common shape, not a proof of completeness.
+
     A lettered provision number is a structural opener = decision:
       id: zr3b5ll2
       why: >
@@ -546,6 +679,41 @@ Shared method and tooling for the identity-law corpus programme = goal:
         `\d+\.` and still is, so the change adds no new false opener — but it does mean a document
         whose lines genuinely begin `12A.` mid-sentence will no longer be rejoined, which is the
         direction this package errs in deliberately: an unjoined line is visible, a welded one is not.
+      children:
+        Structural openers are a registry of traditions, not one common-law regex = decision:
+          id: zzqzaku4
+          why: >
+            `_STRUCTURAL` is number-leading throughout — `\d+[A-Z]{0,2}\.`, `(a)`, `ARTICLE`,
+            `CHAPTER` — which is how common-law drafting numbers a provision and is not how most of
+            the world does. Indonesian puts the label first: `Pasal 13A`, `BAB XI`, `Bagian Kesatu`,
+            `Menimbang`. `indonesia-id` measured the cost of the kit's version against its own:
+            substituting ours **refuses 8 of the 11 stored instruments**, UU 27/2022 falling to 57 of
+            75 articles, UU 23/2006 to 66 of 107, Perpres 95/2018 to 27 of 77. That repo's sharpest
+            observation is the one to keep: our all-caps alternative matches `BAB XVII` while failing
+            `BAB I`, which is the worst possible shape, because it welds exactly the chapters an
+            ordering check would have caught.
+            Chose a `STRUCTURAL_OPENERS` registry — one named tradition per entry, each a regex
+            fragment with its own examples pinned in the tests — and one compiled union used by both
+            consumers of the idea: the rejoiner, which must not weld a heading to the line above, and
+            @lbqi475m's furniture rule, which must not delete one. A tradition is added in one line
+            and both paths gain it, which is the property a second regex bolted beside the first does
+            not have. `structural_pattern(*traditions)` is exposed for a caller that wants a subset.
+            The union is the default rather than a `traditions=` argument the caller must get right,
+            for @amdvdsah's reason: a document does not reliably declare its tradition and the caller
+            frequently does not know either. The cost of carrying every tradition over an English
+            corpus is a line starting `Pasal` or `มาตรา` not being rejoined, which does not occur;
+            the cost of defaulting to common-law is `indonesia-id`'s 8 of 11, which did.
+            Four traditions are registered on the evidence in hand: `common-law` (what
+            `_STRUCTURAL` already was), `indonesian` (lifted from `indonesia-id/tools/indonesian.py`,
+            which is measured over eleven instruments), `thai` and `japanese` (`มาตรา`/`หมวด`,
+            `第N条`/`第N章` — the labels those corpora already hand `completeness.scan`, so the
+            vocabulary is not invented here either). Rejected inferring the tradition from the script,
+            which is @amdvdsah's refuted design in a new place — Indonesian is Latin-scripted.
+            Rejected leaving it in `indonesia-id`, which is @s62c4j's whole premise: the next
+            civil-law corpus writes the same regex again and gets it subtly different.
+            Tradeoff: one pattern now carries four traditions' vocabulary, so a false opener in any
+            of them is a false opener everywhere, and the tests pin each tradition's examples
+            precisely because the union makes a mistake travel.
 
     Furniture is recognised by its shape, not only by its repeated text = decision:
       id: ly7tho4y
@@ -581,6 +749,152 @@ Shared method and tooling for the identity-law corpus programme = goal:
         pages with a page-correlated number in it, and the three conditions are what make that
         unlikely rather than impossible; `raw_pages` remains available for a caller that needs the
         pages before any of this runs.
+      children:
+        The shape rule counted the wrong pages, missed mirrors, and deleted provision headings = decision:
+          id: lbqi475m
+          why: >
+            Three corpora measured three independent defects in @ly7tho4y's shape rule, and they are
+            one change because each fix moves the rule's safety margin and the other two spend it.
+            **The denominator was every page.** Only pages carrying a running head can vote for one,
+            and `singapore-id` measured the consequence on the Interpretation Act 1965: 63 pages of
+            which 18 are front matter and contents with no running head at all, mirrored recto/verso
+            templates on 22 and 23 of the remaining 45, against a bar of `int(63 * 0.4)` = 25. Each
+            half misses by two, nothing is stripped, and with that repo's local strip disabled 69
+            header lines survive — one of them welded to the front of a definition, which is
+            @ly7tho4y's own failure returning through the rule written to stop it.
+            **The floor was an absolute count wearing a fraction.** `max(2, int(len(pages) * 0.4))`
+            is 2 for every document up to four pages, so `japan-id` measured a *mirrored* head
+            stripped on 0 of 2 pages and 2 of 3, working only from 4 pages up, while `indonesia-id`
+            measured the same rule firing correctly at every length from 2 to 11 on *non-mirrored*
+            heads. Both reports are true: the floor is right for a head that appears on every page
+            and wrong for one that alternates, because an alternating head is two templates each
+            holding half the evidence.
+            **And the premise that made the rule safe is false.** @ly7tho4y asserts that a field
+            counting up with the pages is a page number and nothing else in a statute behaves that
+            way. `Pasal N` in a page's top three lines counts up with the pages too. `indonesia-id`
+            measured it on a synthetic statute at 6, 12 and 40 pages: **0 of 40 article headings
+            kept**. That corpus was bitten only mildly — three lost lines were page-foot catchwords —
+            but the rule cannot tell an article heading from a running head, and a cleaner that
+            silently deletes provision headings is worse than the furniture it removes. This is the
+            defect that forces the change; the other two only make the rule miss furniture.
+            Chose three fixes that each address one premise, and a fourth thing deliberately left
+            alone. **The denominator is the span the template covers** — first page carrying it to
+            last — rather than the document, because a running head that starts after the contents
+            page and stops before the schedules should be judged on the territory it runs through.
+            The span must itself reach `SHAPE_THRESHOLD` of the document, which is what stops a
+            template on pages 1 and 2 of a sixty-page instrument scoring 2 of 2 and being deleted.
+            On the Interpretation Act each half is then 22 of the 45 pages it spans, which is 0.49.
+            **Mirrored templates are counted together**, keyed on the multiset of their non-numeric
+            tokens, because `2020 Ed. … Act 1965 … 6` and `6 … Act 1965 … 2020 Ed.` are one running
+            head printed two ways and holding one body of evidence between them. That is what fixes
+            the two- and three-page case without touching the floor: the group has both votes.
+            Each member template must still count up on its own, so grouping merges evidence and
+            never manufactures it.
+            **And a line the package's own structural grammar recognises is never furniture by
+            shape.** That is the premise fix @ly7tho4y needs: the things other than page numbers that
+            count up with the pages are provision headings, and `_STRUCTURAL` is already the list of
+            them, extended per tradition by @zzqzaku4. It is applied to the **shape** rule only. The
+            exact-text rule is left alone on purpose, because identical text on 60% of pages cannot
+            be distinct provisions — article numbers differ — so repetition of the literal string is
+            proof of furniture in a way repetition of a template is not. This split is why
+            `REPUBLIK INDONESIA` is still strippable while `Pasal 13` is not, and it is the reason
+            the fix does not have to choose between the two corpora.
+            Rejected raising `SHAPE_THRESHOLD`, lowering it, or moving the floor — every one of them
+            is tuning a constant against one document, which is what `singapore-id` refused to do
+            locally and reported upward instead. Rejected a minimum content length on the template
+            ("a running head is a title plus a number, an article heading is a label plus a number"),
+            which is the same tuning with a longer name and would have deleted a terse running head.
+            Rejected lifting `singapore-id`'s `<year> Ed.` anchor, for @ly7tho4y's own reason.
+            Tradeoff: the rule now has three conditions where it had one, and a template that is
+            genuinely furniture but is also a structural opener in some tradition will survive — the
+            direction this package errs in deliberately, because a surviving header is visible and a
+            deleted provision is not.
+
+        Two edge windows, because only one of the three rules is evidence-free = decision:
+          id: kbdz5bmq
+          why: >
+            `EDGE_LINES = 3` is where a page's furniture is looked for, and `indonesia-id` measured
+            it too shallow on Perpres 95/2018 — a scan whose page header is the Garuda emblem OCR'd
+            into three to six lines of noise, so the real running head lands at line index 5 to 7.
+            The kit strips **0 of 112** `REPUBLIK INDONESIA` running heads and leaves **123 of 134**
+            standalone `-N-` page markers, because neither the text rule nor the shape rule ever sees
+            them. Each surviving marker is an unterminated line, so the rejoiner then welds it to the
+            heading beneath it, which is how `REPUBLIK INDONESIA -2- BABI` arises: a missed strip
+            becoming a corrupted heading one pass later.
+            Chose to split the window by how much evidence the rule behind it carries, rather than to
+            raise one constant. `EDGE_LINES` stays at 3 for `_PAGE_NUMBER`, whose whole case is
+            positional — a line that is nothing but a number is furniture *because* it sits at the
+            edge, and a bare `12` eight lines into a table is not. `FURNITURE_LINES = 8` is the
+            window for the two rules that prove furniture from repetition across pages: the exact
+            line repeated on 60% of pages, and the template recurring with a counting field. Those
+            two carry their own proof and do not need the position to supply it.
+            A page marker at depth is then reachable without loosening the positional rule: a
+            template matching `_PAGE_NUMBER` is admitted to the shape rule despite carrying no
+            letter, so `-\x00-` qualifies on the same evidence every other template needs — recurrence
+            across its span, and a field that counts up. Near the edge nothing changes at all.
+            The window also now means the same thing in both halves of the function. `_edge_lines`
+            counted non-blank lines while the strip loop counted raw ones, so a page with two leading
+            blank lines voted on three content lines and stripped only one of them — a latent
+            disagreement that made the window shallower still on exactly the scanned documents this
+            is about.
+            Rejected raising `EDGE_LINES` to 8 outright, which would let `_PAGE_NUMBER` delete a bare
+            numeric line deep in an OCR'd table on position alone. Rejected lifting `indonesia-id`'s
+            `_FURNITURE_PREFIX`, which strips a `-N-` marker and the all-caps run before it from
+            anywhere in a line: it is a better answer than this one for that corpus and it is not
+            generalisable, because its guard is "no lower-case letter before the marker" and it
+            rewrites lines rather than dropping them, which is a licence this package should not take
+            over text it is about to store. Recorded rather than adopted, and it stays in that repo.
+            Tradeoff: eight lines is still a number read off one scanner's emblem, and a page whose
+            furniture runs deeper than that is unserved.
+
+    A watermarked PDF is refused, because neither rendering of it is trustworthy = decision:
+      id: k76mmqlc
+      why: >
+        `raw_pages` passes `-layout` by default, on this module's opening claim that poppler's layout
+        analysis on multi-column legal documents is markedly better. `aadhaar` measured what it does
+        to a watermarked page and it is not pollution. Every PDF India Code serves is stamped with a
+        diagonal "India Code", whose glyphs poppler emits as separate fragments; in layout mode the
+        fragments do not sit beside the text, they **displace** it. In the 2021 Regulations,
+        "Official Gazette" is emitted *above* the sentence that ends in it, so
+        `publication in the Official Gazette` greps to **zero in a document that says it**, across 27
+        displaced lines. That is `method.md` §4's silent false negative manufactured by this
+        package's own default path, which is the worst place it can be.
+        `layout=False` is not the answer either. It preserves the reading order and leaves the
+        watermark glyphs on lines of their own — 140 in one 32-page instrument — and the tokens are
+        `e`, `od`, `aC`, `di` and `In`, none of which a blind filter can remove, because `In` opens a
+        sentence in that very corpus. Worse, a glyph alone on a line is an unterminated line, so
+        `_rejoin_wrapped_lines` welds it into the sentence beneath. So there is no rendering of a
+        watermarked page this package can store, and the honest act is to say so.
+        **Rejected, after building it: comparing the two renderings' word adjacencies** and refusing
+        when layout mode destroys more neighbouring pairs than it creates. It reads as the ideal
+        test — no threshold, no glyph vocabulary, and it measures the harm itself — and its own
+        arithmetic refutes it. Moving a block of text is a permutation, and a permutation breaks
+        exactly as many adjacencies as it forms: on the Official-Gazette shape the counts are 2 and
+        2, so the comparison is silent on the document it was built for. Recorded rather than
+        deleted, because it is the first thing the next reader will propose.
+        Chose instead to detect the **cause**, which is visible and has a margin: a page carrying a
+        line that is nothing but one or two Latin letters. A watermark is stamped on every page, so
+        the test is the share of pages carrying such a line rather than a count of them —
+        structural, not magnitude — and `aadhaar` measured 140 such lines against 0 in the
+        publisher's own text of the same instrument. Detection runs on the **raw-mode** rendering,
+        because that is the one where the fragments stay visible; in layout mode they have already
+        been absorbed into the text they displaced, which is the whole problem. `extract` therefore
+        renders twice in layout mode, and refuses naming both remedies: the publisher's own text
+        where one exists, or `raw_pages(layout=False)` with the glyphs handled by a caller who knows
+        what they are.
+        Restricted to **ASCII letters** deliberately. A single CJK character on a line is ordinary in
+        vertical setting, and a rule that counted it would refuse Japanese documents wholesale —
+        `clean_pages` would refuse them a moment later for a different reason, but a guard whose
+        first firing is wrong is the one @bxgnjdos says gets turned off.
+        Rejected a watermark vocabulary. `aadhaar`'s `WATERMARK_TOKENS` is nine glyphs of one
+        publisher's stamp, and that repo is explicit that it uses them to *measure* contamination and
+        never to remove it; generalising a glyph list is the per-corpus duplication @s62c4j exists to
+        end, and a list that removed `In` would delete the word. Rejected changing the default to
+        `layout=False`, which trades a silent reordering for a silent weld. Rejected repairing the
+        order, which would mean inventing one.
+        Tradeoff: `extract` now runs poppler twice in layout mode, `verify_order=False` is the escape
+        hatch, and a document watermarked with something poppler renders as words rather than
+        fragments is invisible to this. It detects a stamp, not every way a page can be spoiled.
 
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
@@ -696,6 +1010,42 @@ Shared method and tooling for the identity-law corpus programme = goal:
             were dropped — and bundling it here would put two unrelated refusals behind one code.
             Tradeoff: a document losing *most* of its tone marks still passes, and the gate's honesty
             is that it says what it checked rather than implying the text is sound.
+
+        A bilingual mojibake guard does not belong here, and the reason is measured = decision:
+          id: bxgnjdos
+          why: >
+            @778's Latin-reads-as-words check is this package's answer to a mixed-script page whose
+            Latin is rubbish. `aadhaar` asked whether it could be widened to cover India's two
+            bilingual failures and the answer is no, because they are two different failures and one
+            guard cannot span them.
+            The first is **letter substitution that survives every statistic tried**. The 2013
+            foreign-CA Regulation's *English* reads `Certifling`, `ceftificates`, `ln these
+            regulations`, `ofaudit` — damage that keeps the vowels, the case and the word count, so
+            the sentence anyone would quote is intact and its neighbours are wrong. Whole-document
+            out-of-vocabulary rate separates it, 0.62 against 0.149 to 0.399; windowed around the
+            passage that matters it does not, 0.195 against a sound document's 0.200. An
+            internal-full-stop rate looks like the signature of the failure and is not: ordinary
+            Indian statutory citation (`s. 2(1)(p)`, `w.e.f.`) produces 0.0045 in a clean document
+            against 0.0078 in the corrupt one.
+            The second is **a sound document that scores like a corrupt one**. The 2016 commencement
+            notifications set their Hindi in a legacy non-Unicode Devanagari font, which extracts as
+            Latin rubbish — `jftLVªh laö Mhö ,yö&33004@99` — beside English that is perfect. Judged
+            whole they score 0.480 and 0.667, and a whole-document guard refused them wrongly.
+            So the honest answer is that this belongs in the consumer, with the reason written down.
+            `aadhaar` refuses the 2013 Regulation **by hand**, in a named exclusion, and re-fetches
+            and re-measures it every run so the refusal is current rather than remembered. The test
+            this package should apply to the next candidate is the one those two repos share without
+            stating it: does the signal have a margin that survives the next document? @778's triad
+            has 30×, and it is here. `japan-id`'s non-positional kanji spelling has 0 of 27,376, and
+            @kcznu7jq built on it. 0.195 against 0.200 has none, and a guard built on it would refuse
+            sound documents — which is how guards get turned off, and a guard that is off is worse
+            than a guard that was never written.
+            Rejected widening @778's thresholds until they covered the 2013 Regulation, which is
+            tuning a gate to one document and produces a gate that passes everything it has not
+            already seen. Rejected a `bilingual=True` mode, which is the same tuning behind an
+            argument. Tradeoff: a corpus that meets this failure gets a paragraph of reasoning from
+            this package and no code, and has to do the work `aadhaar` did.
+
 
     A browser fetcher, scoped to the two obstacles a browser can actually remove = decision:
       id: lkm7beuo

@@ -12,6 +12,8 @@ See this.i @zpycgven and @oym7gzus.
 import pytest
 
 from lawcorpus.completeness import (
+    TruncatedTextError,
+    check_not_truncated,
     CompletenessError,
     Expectation,
     OracleError,
@@ -607,3 +609,42 @@ class TestAnInstrumentWithNoProvisionLabels:
         message = str(e.value)
         assert "' '" not in message
         assert "99" in message
+
+
+class TestARoundLengthWithNoTerminator:
+    """@k4w7rvit — India Code's bundle for the DPDP Rules 2025 stops at exactly 100,000
+    characters, mid-sentence, with no marker, where an inventory check cannot see it.
+    """
+
+    def test_a_cap_at_a_round_number_mid_sentence_is_refused(self):
+        with pytest.raises(TruncatedTextError) as excinfo:
+            check_not_truncated("a" * 99_980 + " and the Board shall", "the DPDP Rules 2025")
+        message = str(excinfo.value)
+        assert "the DPDP Rules 2025" in message
+        assert "100000" in message
+
+    def test_a_round_length_that_ends_in_a_full_stop_is_a_document(self):
+        # One document in a thousand has a round length by chance. That alone is not evidence.
+        assert check_not_truncated("a" * 99_999 + ".") is None
+
+    def test_an_unround_length_that_ends_mid_sentence_is_a_source_that_serves_an_excerpt(self):
+        assert check_not_truncated("a" * 99_980 + " and the Board shal") is None
+
+    def test_a_power_of_two_is_a_cap_too(self):
+        with pytest.raises(TruncatedTextError):
+            check_not_truncated("a" * (65_536 - 20) + " and the Board shall")
+
+    def test_a_small_power_of_two_is_below_the_floor(self):
+        assert check_not_truncated("a" * (2048 - 20) + " and the Board shall") is None
+
+    def test_trailing_whitespace_does_not_hide_the_ending(self):
+        with pytest.raises(TruncatedTextError):
+            check_not_truncated("a" * 99_980 + " and the Board shal\n")
+
+    @pytest.mark.parametrize("text", ["", None, "   "])
+    def test_nothing_at_all_is_not_a_truncation(self, text):
+        assert check_not_truncated(text) is None
+
+    @pytest.mark.parametrize("ending", ["。", "」", "?", ")", "”"])
+    def test_a_terminator_in_any_script_the_programme_holds_ends_a_document(self, ending):
+        assert check_not_truncated("a" * (100_000 - 1) + ending) is None
