@@ -236,7 +236,8 @@ class EurLexFetcher:
                 f"{', '.join(names)}. Expected an .xml member that is not the .doc.xml descriptor."
             )
         # More than one member happens for acts whose annexes are published as separate
-        # Formex documents. Member names encode document order (…0101 enacting terms,
+        # Formex documents. A caller reading `body` alone therefore stores a truncated
+        # instrument and nothing says so — 7,772 words of 32021D0914: ~4pks. Member names encode document order (…0101 enacting terms,
         # …0102, …0103 annexes), so a lexicographic sort reproduces the instrument's own
         # order. Every member is law: an earlier revision kept only the largest member,
         # which silently dropped the annexes of 19 of 28 instruments in one corpus —

@@ -240,8 +240,9 @@ def _numbering_offsets(pages: list, marks: dict) -> set:
       begin at printed page 1995 — which is what `2016` and `2017`, wrapped onto lines of their
       own on adjacent pages of `singapore-id`'s NRA 1965 RG 2, would otherwise claim.
 
-    Without this the rule deletes on position alone, which is not evidence about the line that is
-    there. It cost four words of Singapore law, two footnote markers in a Japanese report — where
+    Two footnote markers on adjacent pages, one greater than the other, still satisfy all three:
+    ~6mas. Without this the rule deletes on position alone, which is not evidence about the line
+    that is there. It cost four words of Singapore law, two footnote markers in a Japanese report — where
     the rejoiner then welded one footnote onto another and made a sentence neither contains — and
     a standard's number from both cover pages of a Thai one.
     """
