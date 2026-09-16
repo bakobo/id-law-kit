@@ -1190,6 +1190,62 @@ Shared method and tooling for the identity-law corpus programme = goal:
             the coordinates that tell a diagonal stamp from a margin column — and that is the
             distinction no text-only statistic tried here could make.
 
+    Loss is measured and reported; only fabrication is refused = decision:
+      id: sqxbhlk2
+      why: >
+        Every gate in this package checks **declared structure** — sections present, numbering
+        contiguous, extraction non-empty, validity stated. Not one checks **whether the words
+        survived**, and in one round four corpora found the same blind spot by four separate hand
+        diffs: `singapore-id` lost four words of law to @fu7njgwq and @ykhhndj7, `japan-id` had a
+        footnote welded onto another and a sentence produced that neither contains, `thailand-id`
+        lost a standard's number from both its cover pages, and `eu-data-law` lost **7,772 words**
+        of `32021D0914` at the fetch layer, where a caller reading `body` alone stopped seeing the
+        annex. Four routes, one hole: nothing compares what came out with what went in.
+        **The objection that this needs two renderings is false where it matters.** `clean_pages`
+        is handed the source pages and returns the cleaned text, so both sides of the comparison
+        are already in the function. Nothing is re-extracted and nothing is fetched twice.
+        Chose to **measure loss and refuse fabrication**, which are not the same decision and the
+        measurement says so. Removals cannot be refused: across 38 PDFs from three corpora the
+        cleaner removes **11,763 words**, of which four were law and the rest were furniture the
+        corpus is better without. No threshold separates those four, because the thing that made
+        them wrong is *why* they were dropped, not how many there were — which is why the fix for
+        them is in the rules and not here. So `compare` reports removals, and it is the harvester,
+        who knows what the document should contain, that reads the report. That is worth shipping
+        on its own: both of this round's furniture defects were found by diffing a word stream by
+        hand, and this makes that a call rather than an afternoon.
+        Additions are a different kind of claim. **Measured over the same 38 documents, the cleaner
+        adds exactly zero words**, and it is zero by construction as well as by measurement: every
+        step deletes lines or joins them with a space, and normalisation is applied to both sides
+        of the comparison, so no step can mint a token. A guard whose false-positive rate is zero
+        both empirically and structurally is the kind this package can leave switched on, which is
+        the standard @uf4epdvm set when it turned the reading-order guard off. So a word that
+        appears in the output and not in the input raises `e.self.corrupt.text.f` and the text does
+        not leave the package.
+        **Rejected, after building and measuring it: refusing a drop that splices body text.** It
+        is the test that actually catches this round's Japanese fabrication — a dropped line sitting
+        immediately between an unterminated line and a continuation, so removing it welds two
+        sentences that never touched. Measured, it fires **629 times across 16 of the 38
+        documents**, because a footer *is* a line between two body lines and removing it is exactly
+        what lets the sentence rejoin across the page break. The normal case and the pathological
+        one have the same shape, which is @k76mmqlc's lesson arriving from a second direction:
+        there, moving text broke as many adjacencies as it formed, and here, deleting furniture
+        forms the adjacency that deleting law also forms. Recorded rather than deleted, because it
+        reads as the obvious test and is the first thing the next reader will propose.
+        The tokeniser is per script, and Japanese forced it. `clean_japanese_pages` rejoins with
+        **no separator**, because Japanese writes no spaces between words — so a whitespace
+        tokeniser sees every legitimate rejoin as two words vanishing and one new word appearing,
+        and would refuse every Japanese document on its first line. Characters are what survive
+        that, so the Japanese path is checked character by character, which is the same claim in
+        the alphabet the script uses. Thai is **excluded**, and not by oversight: `repair_marks`
+        and `compose_sara_am` compose and reorder combining marks on purpose (@psletl4a and its
+        siblings), so its character multiset is meant to change and a check would report the repair
+        as the damage.
+        Tradeoff: the fabrication guard cannot see a fabrication made entirely of words the source
+        already contains, which is what welding two footnotes is — that one is caught upstream, by
+        not deleting the marker between them, and downstream by a human reading the report of what
+        was removed. This buys the loud half of the problem, and it says plainly that the quiet
+        half is still quiet.
+
     A Japanese PDF path, because the English cleaner corrupts one silently = decision:
       id: 3i2xqflu
       why: >
