@@ -438,6 +438,47 @@ class TestTheShapeRuleCountsThePagesAHeadCovers:
             assert "Gazette Volume" not in out, count
 
 
+class TestAPageNumberAdvancesAtLeastOncePerPage:
+    """@ykhhndj7 — two pages make "some field counts up" almost free, so ask how fast it counts."""
+
+    def test_an_amendment_date_on_two_pages_of_seven_is_not_a_running_head(self):
+        # singapore-id, PDPA Statutory Bodies Notification: `wef 03/10/2016]` and `wef 04/10/2016]`
+        # became a running head because the day of month ascends 3 -> 4 across pages 1 and 4. ~6wh3.
+        pages = [
+            "1. Some Statutory Board\n2. Another Board\nwef 03/10/2016]",
+            "Third entry in the Schedule\nFourth entry in the Schedule",
+            "Fifth entry in the Schedule\nSixth entry in the Schedule",
+            "62. [Deleted by S 700/2016\nwef 04/10/2016]",
+            "Seventh entry\nEighth entry",
+            "Ninth entry\nTenth entry",
+            "Eleventh entry\nTwelfth entry",
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "wef 03/10/2016]" in out
+        assert "wef 04/10/2016]" in out
+
+    def test_a_head_whose_number_keeps_pace_is_still_furniture(self):
+        pages = [f"2020 Ed.   Some Act 1965   {n}\nprovision {chr(96 + n)}" for n in range(1, 9)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Some Act 1965" not in out
+
+    def test_a_mirrored_head_on_alternate_pages_keeps_pace(self):
+        # The comparison is against page indices, not carrying rows, so a template that appears on
+        # every other page rises two per appearance and still counts one per page.
+        pages = [
+            (f"2020 Ed.   Some Act 1965   {n}" if n % 2 else f"{n}   Some Act 1965   2020 Ed.")
+            + f"\nprovision {chr(96 + n)}"
+            for n in range(1, 13)
+        ]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Some Act 1965" not in out
+
+    def test_a_field_that_rises_slower_than_the_pages_is_not_a_page_number(self):
+        pages = [f"Annex reference 4/{n // 5 + 1}]\nbody text {chr(96 + n)}" for n in range(1, 13)]
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "Annex reference" in out
+
+
 class TestTheShapeRuleNeverDeletesAProvisionHeading:
     """@lbqi475m — a Pasal heading counts up with the pages too, so the safety premise was false."""
 

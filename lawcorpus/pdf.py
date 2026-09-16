@@ -269,8 +269,8 @@ def _head_group(shape: str) -> tuple:
     return tuple(sorted(shape.replace(_FIELD, " ").split()))
 
 
-def _counts_up(values: list) -> bool:
-    """Does some one field strictly increase across the pages carrying this shape?
+def _counts_up(rows: list) -> bool:
+    """Does some one field advance at least one per page across the pages carrying this shape?
 
     Half of what makes the shape rule safe, and only half. "Constant except for a varying number"
     on its own also describes the edge rows of a long numbered table. @ly7tho4y claimed this was
@@ -278,9 +278,21 @@ def _counts_up(values: list) -> bool:
     a statute behaves that way" — and `indonesia-id` refuted it with `Pasal N`, which counts up
     with the pages exactly as a page number does. The other half is `_STRUCTURAL`, applied in
     `_furniture_shapes`. See @lbqi475m.
+
+    **Ascending alone is nearly free on two pages**, which is all `MIN_FURNITURE_PAGES` requires: a
+    field ascends by chance half the time, so a three-field template clears it seven times in
+    eight. So the rate is tested too, and against the **page indices** rather than the carrying
+    rows, which is what lets a head printed on alternate pages rise two per appearance and still
+    count one per page. `wef 03/10/2016]` and `wef 04/10/2016]` on pages 1 and 4 of seven rise 1
+    across 3 and are not counting pages: they are two amendment dates this rule deleted from a
+    Schedule. See @ykhhndj7.
     """
+    indices = [index for index, _ in rows]
+    values = [fields for _, fields in rows]
+    span = indices[-1] - indices[0]
     return any(
         all(row[field] < nxt[field] for row, nxt in zip(values, values[1:]))
+        and values[-1][field] - values[0][field] >= span
         for field in range(len(values[0]))
     )
 
@@ -334,7 +346,7 @@ def _furniture_shapes(pages: list) -> set:
     bar = max(MIN_FURNITURE_PAGES, math.ceil(len(pages) * SHAPE_THRESHOLD))
     groups = {}
     for shape, rows in _shape_candidates(pages).items():
-        if _counts_up([fields for _, fields in rows]):
+        if _counts_up(rows):
             groups.setdefault(_head_group(shape), []).append((shape, rows))
 
     furniture = set()
