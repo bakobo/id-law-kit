@@ -27,7 +27,7 @@ from collections import Counter
 from pathlib import Path
 
 from .errors import LawcorpusError
-from .formex import _TYPOGRAPHY_TABLE
+from .normalise import normalise_text
 
 # How many lines at each edge of a page can be furniture.
 EDGE_LINES = 3
@@ -116,7 +116,7 @@ def clean_pages(pages: list) -> str:
         )
 
     text = "\n".join(strip_repeated_furniture(pages))
-    text = text.replace("\f", "\n").translate(_TYPOGRAPHY_TABLE)
+    text = normalise_text(text.replace("\f", "\n"))
     text = "\n".join(line.rstrip() for line in text.splitlines())
     text = _rejoin_wrapped_lines(text)
     text = _MULTISPACE.sub(" ", text)

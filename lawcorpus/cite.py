@@ -31,6 +31,7 @@ from pathlib import Path
 
 from .errors import LawcorpusError
 from .manifest import Manifest, ManifestError
+from .normalise import normalise_query
 from .store import CorpusStore, StoreError
 
 
@@ -114,7 +115,7 @@ class Corpus:
         in-force and struck-down text is worse than no count at all.
         """
         try:
-            rx = re.compile(pattern, re.IGNORECASE)
+            rx = re.compile(normalise_query(pattern), re.IGNORECASE)
         except re.error as e:
             raise CorpusError(
                 f"'{str(pattern)[:40]}' is not a valid regular expression: {e}."

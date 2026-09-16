@@ -183,9 +183,29 @@ Rules that follow:
 
 - **Refuse empty extractions.** A PDF that extracts to whitespace is a scanned image needing OCR,
   not a provision with no text. Storing it puts a blank entry in the corpus that reads like success.
-- **Normalise layout-only characters**, and only those. No-break spaces, figure spaces, non-breaking
-  and soft hyphens go; curly quotes and en dashes stay, because they are visible and in EU drafting
-  the quotes mark defined terms.
+- **Normalise layout-only characters**, and only those — **unconditionally, for every document,
+  whatever language it is in.** No-break spaces, figure spaces, the ideographic space, non-breaking
+  and soft hyphens, zero-width characters and the full-width variants of ASCII all go; curly quotes,
+  en dashes, U+3001 `、`, U+3002 `。` and U+318D `ㆍ` stay, because they are visible characters
+  carrying their own meaning rather than width. `lawcorpus/normalise.py` is the one set.
+
+  **Never switch this on a language tag.** Phase 0 tested that design and falsified it: Japanese
+  uses U+3001 and *zero* U+FF0C, Korean has no full-width punctuation at all but 4,966 instances of
+  U+318D, Chinese uses both commas with the ideographic one ahead, Singapore's English carries the
+  EU's U+2011 — and the **English-language** CTID specification contains stray full-width
+  parentheses, which no language-keyed rule would have routed to a fix.
+
+  **And never reach for NFKC.** It looks like the general form of this fold. Applied to Thai it
+  decomposes U+0E33 `ำ`, taking `สำนักงาน` from 18 hits to 0: the standard remedy generating the
+  exact silent false negative the rule exists to prevent.
+
+- **Some characters must survive normalisation and still be searchable, so the query moves instead.**
+  Full-width enumerators like `（一）` address provisions, so stripping them breaks citation; U+318D
+  is visible, so it stays. `lawcorpus.normalise.normalise_query` folds the *pattern* the same way the
+  text was folded and expands a list separator to match all five of its spellings, which is why
+  `lawcite --grep` finds text no literal `rg` would. For comparing two strings rather than searching
+  — the expected-phrase check of §2 — use `search_key`, which also folds Thai and Arabic numerals
+  together and collapses the line wrapping that made that check abort on a *correct* Thai document.
 - **Preserve structure.** "Article 5(1)(a)" must be locatable in the stored text, or quote-or-drop
   degrades into "the phrase appears somewhere in a 90,000-word file."
 - **Sanity-check the shape.** The GDPR has 99 articles and 173 recitals. If your extraction says

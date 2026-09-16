@@ -19,7 +19,7 @@ from xml.etree import ElementTree
 from defusedxml import ElementTree as SafeElementTree
 
 from .errors import LawcorpusError
-from .formex import _TYPOGRAPHY_TABLE
+from .normalise import normalise_text
 
 _MULTISPACE = re.compile(r"[ \t]{2,}")
 _BLANKS = re.compile(r"\n{3,}")
@@ -69,7 +69,7 @@ def _paragraphs(root) -> list:
                 parts.append(child.text)
             if child.tail:
                 parts.append(child.tail)
-        text = " ".join("".join(parts).translate(_TYPOGRAPHY_TABLE).split())
+        text = " ".join(normalise_text("".join(parts)).split())
         if text:
             out.append(text)
     return out
