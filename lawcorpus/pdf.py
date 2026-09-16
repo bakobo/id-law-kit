@@ -30,9 +30,9 @@ from pathlib import Path
 from .errors import LawcorpusError
 from .normalise import DIGITS, fold_digits, looks_cjk, normalise_text
 
-# How many lines at each edge of a page `_PAGE_NUMBER` may reach. Position is the only evidence
-# that rule has — a line which is nothing but a number is furniture *because* it sits at the edge —
-# so its window stays tight. See @kbdz5bmq.
+# How many lines at each edge of a page a page number may be looked for in. The window says where
+# a page number would be if there were one; it is not evidence that the line found there is one.
+# That evidence is a numbering run — see `_numbering_offsets` and @fu7njgwq.
 EDGE_LINES = 3
 # How many lines at each edge the two rules that prove furniture from repetition may reach. They
 # carry their own evidence and do not need position to supply it, which is what lets them see past
@@ -194,6 +194,59 @@ def _line_ranks(lines: list) -> tuple:
     return {index: rank for rank, index in enumerate(filled)}, len(filled)
 
 
+def _page_marks(pages: list) -> dict:
+    """Every edge line that is nothing but a number, keyed by page and line, with its value.
+
+    Built once and consulted by both halves of the page-number rule — the run-finding below and
+    the strip loop — so the window cannot come to mean one thing in the counting and another in
+    the dropping. That disagreement is the defect @kbdz5bmq found in the version before it.
+    """
+    marks = {}
+    for index, page in enumerate(pages):
+        lines = page.splitlines()
+        ranks, filled = _line_ranks(lines)
+        for position, line in enumerate(lines):
+            rank = ranks.get(position)
+            if rank is None or not (rank < EDGE_LINES or rank >= filled - EDGE_LINES):
+                continue
+            stripped = line.strip()
+            if _PAGE_NUMBER.match(stripped):
+                marks[(index, position)] = int(fold_digits(_DIGIT_RUN.search(stripped).group()))
+    return marks
+
+
+def _numbering_offsets(pages: list, marks: dict) -> set:
+    """The offsets at which this document's page numbers march with its pages.
+
+    A page number is the page's index plus a constant — 1 for a document numbered from its first
+    page, -24 for the explanatory part that restarts after it — so a real numbering run is a
+    **cohort** of edge numbers sharing one offset. Three things must hold before the cohort is
+    believed, and each was refuted on its own (@fu7njgwq):
+
+    * enough pages carry it, which is `MIN_FURNITURE_PAGES`, the floor every rule here uses;
+    * two of those pages are **adjacent**, because numbering advances one page at a time and two
+      numbers agreeing across a gap agree by coincidence;
+    * the offset is no larger than the document is long, because a 25-page instrument does not
+      begin at printed page 1995 — which is what `2016` and `2017`, wrapped onto lines of their
+      own on adjacent pages of `singapore-id`'s NRA 1965 RG 2, would otherwise claim.
+
+    Without this the rule deletes on position alone, which is not evidence about the line that is
+    there. It cost four words of Singapore law, two footnote markers in a Japanese report — where
+    the rejoiner then welded one footnote onto another and made a sentence neither contains — and
+    a standard's number from both cover pages of a Thai one.
+    """
+    carrying = {}
+    for (index, _), value in marks.items():
+        carrying.setdefault(value - index, set()).add(index)
+    return {
+        offset
+        for offset, indices in carrying.items()
+        if abs(offset) <= len(pages)
+        and len(indices) >= MIN_FURNITURE_PAGES
+        and any(index + 1 in indices for index in indices)
+    }
+
+
 def _shape(line: str) -> str:
     """One line with its whitespace collapsed and every numeric field masked out."""
     return _MULTISPACE.sub(" ", _DIGIT_RUN.sub(_FIELD, line))
@@ -306,15 +359,21 @@ def strip_repeated_furniture(pages: list) -> list:
     provision heading. Frequency is measured only at the *edges* of a page: a phrase appearing in
     the body of every page is a defined term, not furniture.
 
-    Two edge windows, not one. `_PAGE_NUMBER` has nothing but position to go on, so it keeps the
-    tight `EDGE_LINES`; the two rules that prove furniture from repetition across pages reach
+    Two edge windows, not one. A page number is looked for in the tight `EDGE_LINES`, because that
+    is where one would be; the two rules that prove furniture from repetition across pages reach
     `FURNITURE_LINES` deep, which is what lets them see a running head printed below a scanner's
     emblem. See @kbdz5bmq.
 
+    **Every rule here now proves its case from other pages.** Being at the edge is where a page
+    number is looked for and not why it is believed: a bare number is dropped only when the
+    document's other numbers march with the pages around it (`_numbering_offsets`, @fu7njgwq).
+    Position alone deleted a wrapped year from a table, and a footnote marker from a report.
+
     **All three rules match a whole line, and that is what makes dropping safe.** The text rule
     needs the entire line repeated across pages, the shape rule needs it repeated with only its
-    numeric fields varying, and `_PAGE_NUMBER` needs the line to be nothing but a number, so a line
-    carrying unique body text satisfies none of them and cannot be taken out from under a sentence.
+    numeric fields varying, and the page-number rule needs the line to be nothing but a number, so
+    a line carrying unique body text satisfies none of them and cannot be taken from under a
+    sentence.
     That is why this drops lines and `indonesia-id`'s `_FURNITURE_PREFIX`, which rewrites them, was
     not lifted: rewriting needs a rule about which part of a line to keep. See @zga5midk.
     """
@@ -329,22 +388,22 @@ def strip_repeated_furniture(pages: list) -> list:
     threshold = max(MIN_FURNITURE_PAGES, int(len(pages) * FURNITURE_THRESHOLD))
     furniture = {line for line, n in edge_counts.items() if n >= threshold}
     shapes = _furniture_shapes(pages)
+    marks = _page_marks(pages)
+    offsets = _numbering_offsets(pages, marks)
 
     out = []
-    for page in pages:
+    for number, page in enumerate(pages):
         lines = page.splitlines()
         ranks, filled = _line_ranks(lines)
         keep = []
         for index, line in enumerate(lines):
             stripped = line.strip()
             rank = ranks.get(index)
-            at_edge = rank is not None and (rank < EDGE_LINES or rank >= filled - EDGE_LINES)
             deep = rank is not None and (
                 rank < FURNITURE_LINES or rank >= filled - FURNITURE_LINES
             )
-            if (deep and (stripped in furniture or _shape(stripped) in shapes)) or (
-                at_edge and _PAGE_NUMBER.match(stripped)
-            ):
+            marching = (number, index) in marks and marks[(number, index)] - number in offsets
+            if (deep and (stripped in furniture or _shape(stripped) in shapes)) or marching:
                 continue
             keep.append(line)
         out.append("\n".join(keep))

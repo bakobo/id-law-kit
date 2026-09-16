@@ -529,6 +529,76 @@ class TestTheEdgeWindows:
         assert "RUNNING HEAD" not in out
 
 
+def _numbered(count, offset=1, marks=None):
+    """`count` pages, each carrying a bare number at its foot unless `marks` says otherwise.
+
+    The body carries no digits at all, so nothing in it can be read as a counting template and
+    the page-number rule is the only rule with anything to say about these pages.
+    """
+    words = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu".split()
+    pages = []
+    for index in range(count):
+        mark = marks.get(index) if marks is not None else index + offset
+        tag = words[index % len(words)]
+        body = "\n".join(f"The {tag} clause, {w}, of this instrument." for w in words[:5])
+        pages.append(f"An Act of some kind\n{body}\n{mark}" if mark is not None
+                     else f"An Act of some kind\n{body}")
+    return pages
+
+
+class TestAPageNumberMarchesWithThePages:
+    """@fu7njgwq — the one rule with no cross-page evidence gets some, in the form numbering takes."""
+
+    def test_a_run_of_page_numbers_is_still_stripped(self):
+        out = strip_repeated_furniture(_numbered(8))
+        assert all(page.splitlines()[-1].endswith("of this instrument.") for page in out)
+
+    def test_a_wrapped_year_at_a_page_foot_is_kept(self):
+        # singapore-id, NRA 1965 RG 2: the amendment-history table wraps an instrument's title
+        # across lines, and the bare year was deleted rather than rejoined. ~55kg.
+        pages = _numbered(25, marks={22: 2016, 23: 2017})
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "2016" in out and "2017" in out
+
+    def test_an_offset_beyond_the_documents_length_is_not_a_numbering_run(self):
+        # 2016 and 2017 on adjacent pages 22 and 23 share the offset 1994 and are adjacent, so
+        # support and adjacency both pass. A 25-page document does not begin at printed page 1995.
+        pages = _numbered(25, marks=dict.fromkeys(range(25)) | {22: 2016, 23: 2017})
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "2016" in out and "2017" in out
+
+    def test_a_lone_number_on_a_cover_page_is_kept(self):
+        pages = _numbered(6, marks={0: 1})
+        assert "1" in "\n".join(strip_repeated_furniture(pages)).splitlines()
+
+    def test_two_numbers_agreeing_by_coincidence_are_kept(self):
+        # Value 5 on page 2 and value 53 on page 50 share an offset of 3 and prove nothing.
+        pages = _numbered(60, marks={2: 5, 50: 53})
+        out = "\n".join(strip_repeated_furniture(pages))
+        assert "\n5\n" in out + "\n" and "\n53\n" in out + "\n"
+
+    def test_a_second_numbering_run_is_its_own_cohort(self):
+        # indonesia-id: UU 11/2008 numbers its Penjelasan from 1 again, so one document holds two
+        # runs at offsets 1 and -24. Both are real, and neither may cost the other.
+        marks = {index: index + 1 for index in range(20)}
+        marks.update({index: index - 19 for index in range(20, 40)})
+        out = strip_repeated_furniture(_numbered(40, marks=marks))
+        assert all(page.splitlines()[-1].endswith("of this instrument.") for page in out)
+
+    def test_a_sparse_run_is_still_a_run(self):
+        # UU 12/2011: poppler finds 19 of the numbers across a span of 48 pages, which is real
+        # numbering seen imperfectly rather than a coincidence.
+        marks = {index: index + 1 for index in range(0, 48, 2)}
+        out = "\n".join(strip_repeated_furniture(_numbered(48, marks=marks)))
+        assert "\n47\n" not in out + "\n"
+
+    def test_a_numbering_run_needs_two_adjacent_pages(self):
+        # Every number in this document agrees on one offset, but no two of them are neighbours.
+        marks = {index: index + 1 for index in range(0, 30, 3)}
+        out = "\n".join(strip_repeated_furniture(_numbered(30, marks=marks)))
+        assert "\n28\n" in out + "\n"
+
+
 class TestStructuralOpenersPerTradition:
     """@zzqzaku4 — the opener list was number-leading, and most of the world puts the label first."""
 
