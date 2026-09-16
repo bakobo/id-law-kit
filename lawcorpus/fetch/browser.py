@@ -96,21 +96,51 @@ _TEXTUAL_HINTS = ("text/", "html", "xml", "json", "javascript")
 
 
 class BrowserError(LawcorpusError):
-    """A browser fetch that did not come back usable."""
+    """A browser fetch that did not come back usable, and will not on a second attempt.
 
-    code = "BK_BROWSER_FETCH"
+    `env`, because the obstacle is a system we depend on — the browser and what it reaches —
+    failing to deliver: a browser that will not start, a navigation that reports no response, a
+    status that is not 200 and is not a challenge, or a 200 with an empty body. Final; the
+    retryable half of the same family is `BrowserTransientError`, and `e.env.browser.` gathers
+    both (this.i @sqxhmdkt, @3tkymxtr).
+    """
+
+    code = "e.env.browser.f"
+
+
+class BrowserTransientError(BrowserError):
+    """The retrieval did not complete, and the same request may succeed later.
+
+    A timeout, a dropped connection, a dead browser process, or a source answering 5xx. Separate
+    from its parent only in the disposition, which is the one thing a caller reacts to
+    differently — and the parent stays final so that a subclass which forgets to declare a code
+    inherits the fail-closed answer.
+    """
+
+    code = "e.env.browser.r"
 
 
 class BrowserConfigError(BrowserError):
-    """The fetcher, a URL, or an access window was declared wrong. Nothing was fetched."""
+    """The fetcher, a URL, or an access window was declared wrong. Nothing was fetched.
 
-    code = "BK_BROWSER_CONFIG"
+    `input`, because every one of these is decidable by inspecting the arguments alone, with no
+    lookup — the standard's own boundary between `input` and everything else. The bare registered
+    code rather than a leaf of our own: nobody diagnoses "a bad argument to a browser fetcher"
+    separately from any other malformed argument.
+    """
+
+    code = "e.input.format.f"
 
 
 class BrowserUnavailableError(BrowserError):
-    """No browser to drive: the optional extra is missing, or its binaries are not installed."""
+    """No browser to drive: the optional extra is missing, or its binaries are not installed.
 
-    code = "BK_BROWSER_UNAVAILABLE"
+    `self.config`, not `feature.unsupported`: the capability ships, and the reason we cannot use
+    it is our own installation rather than the world's. The message names the command that fixes
+    it, which is what makes the locus the useful thing to say (this.i @2sc5rmg4).
+    """
+
+    code = "e.self.config.browser.f"
 
 
 class BrowserRefusedError(BrowserError):
@@ -118,20 +148,30 @@ class BrowserRefusedError(BrowserError):
 
     This is a supported outcome, not a defect to engineer around. It carries the provenance and
     the refused body so a caller can record what happened and diagnose it.
+
+    `party`, because agency is the test the standard sets between an actor and a machine: a host
+    serving a challenge or a deny page chose. Final, and that matters — @v2xlormp forbids a loop
+    that waits a challenge out, so an `r` here would advertise the behaviour this module refuses.
     """
 
-    code = "BK_BROWSER_REFUSED"
+    code = "e.party.refused.f"
 
-    def __init__(self, message: str, *, provenance=None, body: bytes = b"", transient: bool = False):
+    def __init__(self, message: str, *, provenance=None, body: bytes = b"", transient: bool = None):
         self.provenance = provenance
         self.body = body
         super().__init__(message, transient=transient)
 
 
 class WindowClosedError(BrowserError):
-    """It is outside the hours this source permits automated access. Retry inside the window."""
+    """It is outside the hours this source permits automated access. Retry inside the window.
 
-    code = "BK_ACCESS_WINDOW_CLOSED"
+    `rule` — "a norm we enforce, neither authority nor verification" — because nobody's
+    credential is being evaluated here: we are holding ourselves to a source's own term
+    (@asbhej3z). Retryable, because the window reopens, which is the whole contrast with the
+    refusal above.
+    """
+
+    code = "e.rule.access.window.r"
 
 
 def _utc_now() -> datetime:
@@ -214,8 +254,7 @@ class AccessWindow:
         raise WindowClosedError(
             f"This source permits automated access only {self.describe()}, and it is "
             f"{local:%H:%M} there now. Run the harvest inside the window; the same request will "
-            f"succeed then.",
-            transient=True,
+            f"succeed then."
         )
 
     def describe(self) -> str:
@@ -560,12 +599,11 @@ class BrowserFetcher:
         except LawcorpusError:
             raise
         except Exception as e:
-            raise BrowserError(
+            raise BrowserTransientError(
                 f"The browser did not complete the request to {url}: {e}. This is usually a "
                 f"network, timeout or browser-process problem rather than a rejection — but note "
                 f"that a host which black-holes the connection (peraturan.go.id, every "
-                f"kemendagri.go.id host) looks exactly like this, and no browser will fix that.",
-                transient=True,
+                f"kemendagri.go.id host) looks exactly like this, and no browser will fix that."
             ) from e
 
     def _judge(self, url: str, raw: RawResponse, mode: str) -> BrowserDocument:
@@ -592,10 +630,9 @@ class BrowserFetcher:
                 body=raw.body,
             )
         if raw.status >= 500:
-            raise BrowserError(
+            raise BrowserTransientError(
                 f"{provenance.final_url} answered {raw.status}. The service is failing or "
-                f"overloaded, not rejecting the request.",
-                transient=True,
+                f"overloaded, not rejecting the request."
             )
         if raw.status != 200:
             raise BrowserError(

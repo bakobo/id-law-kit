@@ -135,6 +135,12 @@ class TestParseTranslationStatus:
         assert e.value.code != ValidityError.code
         assert e.value.transient is False
 
+    def test_its_code_sits_under_the_standard_input_sub_descriptor(self):
+        # `e.input.translation-status.f` put our own leaf where the standard's own second level
+        # goes, so `e.input.format.` — which gathers its sibling `e.input.format.oracle.f` — did
+        # not reach it. this.i @sqxhmdkt.
+        assert TranslationStatusError.code == "e.input.format.translation-status.f"
+
 
 class TestQuotableAsEvidence:
     @pytest.mark.parametrize(

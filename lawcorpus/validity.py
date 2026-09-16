@@ -40,10 +40,17 @@ class TranslationStatusError(LawcorpusError):
 
     A code of its own, in the grammar of `dev/standards/error-codes.md`, so a harvester can tell
     a translation-provenance refusal from a validity refusal without reading the prose. The older
-    `BK_`-style codes on the classes around it predate that standard.
+    `BK_`-style codes on the classes around it predate that standard and keep their identity
+    until tick ~6fpq retires them.
+
+    The leaf sits under `format`, which was a correction: `e.input.translation-status.f` put our
+    own token at the level the standard fills with `.missing`/`.format`/`.range`/`.multi`, so
+    `e.input.format.` did not reach it even though it reached its sibling
+    `e.input.format.oracle.f` — the same obstacle, a declared token this package cannot read
+    (this.i @sqxhmdkt).
     """
 
-    code = "e.input.translation-status.f"
+    code = "e.input.format.translation-status.f"
 
 
 class Validity(Enum):

@@ -23,6 +23,7 @@ from lawcorpus.fetch.browser import (
     BrowserError,
     BrowserFetcher,
     BrowserRefusedError,
+    BrowserTransientError,
     BrowserUnavailableError,
     PlaywrightSession,
     RawResponse,
@@ -100,6 +101,38 @@ def make_fetcher(session=None, **kwargs):
     kwargs.setdefault("min_interval", 0)
     kwargs.setdefault("now", lambda: datetime(2026, 9, 16, 12, 0, tzinfo=timezone.utc))
     return BrowserFetcher(session_factory=factory, **kwargs), factory
+
+
+class TestTheCodesTheseErrorsCarry:
+    """Classified by the obstacle, never by the module that raised it (this.i @sqxhmdkt).
+
+    The grammar itself is checked package-wide in `test_error_codes.py`; what is pinned here is
+    the classification, because that is the judgement a later reader is most likely to undo.
+    """
+
+    def test_a_host_that_challenges_us_is_an_actor_that_chose(self):
+        assert BrowserRefusedError.code == "e.party.refused.f"
+
+    def test_a_refusal_is_final_because_we_never_wait_a_challenge_out(self):
+        assert BrowserRefusedError("no").transient is False  # this.i @v2xlormp
+
+    def test_a_closed_window_is_a_norm_we_enforce_on_ourselves(self):
+        assert WindowClosedError.code == "e.rule.access.window.r"
+
+    def test_a_closed_window_is_retryable_because_the_window_reopens(self):
+        assert WindowClosedError("not yet").transient is True
+
+    def test_a_missing_browser_is_our_own_installation_not_a_capability_nobody_has(self):
+        assert BrowserUnavailableError.code == "e.self.config.browser.f"
+
+    def test_a_badly_declared_fetch_is_what_the_caller_sent(self):
+        assert BrowserConfigError.code == "e.input.format.f"
+
+    def test_the_browser_channel_carries_both_dispositions_under_one_prefix(self):
+        assert BrowserError.code == "e.env.browser.f"
+        assert BrowserTransientError.code == "e.env.browser.r"
+        assert issubclass(BrowserTransientError, BrowserError)
+        assert BrowserError.code.rsplit(".", 1)[0] == BrowserTransientError.code.rsplit(".", 1)[0]
 
 
 class TestAccessWindow:
@@ -318,7 +351,7 @@ class TestFetchDocument:
             document=RawResponse(status=503, headers={}, body=b"oops", url="https://x.example/")
         )
         fetcher, _ = make_fetcher(session)
-        with pytest.raises(BrowserError) as e:
+        with pytest.raises(BrowserTransientError) as e:
             fetcher.fetch_document("https://x.example/")
         assert e.value.transient is True
 
@@ -346,7 +379,7 @@ class TestFetchDocument:
     def test_a_browser_exception_becomes_a_transient_error(self):
         session = FakeSession(document=RuntimeError("net::ERR_CONNECTION_TIMED_OUT"))
         fetcher, _ = make_fetcher(session)
-        with pytest.raises(BrowserError) as e:
+        with pytest.raises(BrowserTransientError) as e:
             fetcher.fetch_document("https://peraturan.go.id/")
         assert e.value.transient is True
         assert "ERR_CONNECTION_TIMED_OUT" in str(e.value)
