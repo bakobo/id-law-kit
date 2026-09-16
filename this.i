@@ -47,6 +47,32 @@ Shared method and tooling for the identity-law corpus programme = goal:
         structural. Tradeoff: `validity` cannot be derived mechanically for most items, so it is
         hand-curated and will lag; a wrong `validity` is more dangerous than an absent one, which
         is why it is a required field with no default rather than an optional annotation.
+      children:
+        `standard` is refused as a tier: an incorporated specification is already delegated = decision:
+          id: 3zljqayt
+          why: >
+            `eidas-eudi/corpus-specs` files OpenID4VCI, OpenID4VP and HAIP at
+            `authority_tier: standard`, which `AuthorityTier` does not carry, so that manifest has
+            been unreadable since the enum shipped and one of the two has to give. The case for
+            admitting the token is real: an open technical specification that an implementing act
+            adopts normatively is not the same kind of thing as an explanatory memorandum, and
+            `commentary` files them together. Rejected it on membership. Incorporation by reference
+            is a property of the *citing instrument*, not of the document — the same OpenID4VP that
+            the EUDI implementing acts make operative is, in `japan-id/corpus-specs`, a document
+            with no legal force whatever. A tier whose members change according to who is citing
+            them cannot order a conflict, which is the single thing @oxu7ik made this field for.
+            And where a specification does bind, what binds is the implementing act's incorporation
+            of it, and that act is already `delegated`; the specification's own text is still
+            evidence of a rule nobody enacted. Decisively, the repo already answers its own
+            question: `eidas-eudi/corpus-arf` files all 69 EUDI ARF items at `commentary`, and
+            `taxonomy.md` §2 defends that placement by name, so `standard` is one corpus disagreeing
+            with its sibling in the same repo about the same class of document. `corpus-specs`
+            therefore reads `commentary`, and `lawcorpus.migrate` grows a `--retier old=new` so the
+            correction rides the @oa2bvav5 migration instead of becoming a second hand-edit.
+            Tradeoff: a finding that quotes an incorporated specification beside a policy slide sees
+            them at equal rank and must say in prose which one an implementing act made operative —
+            accepted, because that sentence is the analysis, and a tier that encoded it would be
+            wrong the moment the same document is cited from another jurisdiction.
 
     cite.py refuses to quote without printing validity = decision:
       id: xrfhyv
@@ -122,6 +148,37 @@ Shared method and tooling for the identity-law corpus programme = goal:
             an official-but-non-authoritative translation is wrong at the margin, while a machine
             translation can invert a negation with no signal at all. Tradeoff: the corpus can hold
             text nobody may quote, which is the same tradeoff `struck-down` already takes.
+
+        The corpus repo migrates its own manifest; the reader never infers = decision:
+          id: oa2bvav5
+          why: >
+            @elsvh64d made `translation_status` required and shipped with no migration, so
+            `Manifest.read` began refusing every manifest written before it — seven files across
+            four repos (`ccpa/corpus`, `ccpa/corpus-regs`, `civil-law-acts/corpus`,
+            `eu-data-law/corpus`, and `eidas-eudi`'s `corpus`, `corpus-arf` and `corpus-specs`),
+            which is `lawcite` broken against every published corpus except `japan-id`.
+            `utah-id-law` is untouched, because it never moved off its three bespoke manifests —
+            that is the duplication @s62c4j exists to end, not this defect. Rejected a reader that
+            accepts a manifest declaring an older schema and refuses only to write it back: it must
+            answer what `banners()` prints for an item whose provenance is unrecorded, and both
+            answers are bad — printing nothing is @elsvh64d's rejected default wearing a version
+            number, and a fifth vocabulary member is a redesign of the field that every consumer
+            then has to handle. It also leaves the old schema readable indefinitely, so nothing ever
+            moves the four repos off it. Rejected reading a manifest with no translation columns as
+            `authoritative`, which infers the value from the absence of the value: it is right for
+            these seven files and wrong for the first corpus that predates the column and holds a
+            translation, and being obviously right here is how a default gets adopted that is
+            silently wrong there. Chose a one-shot migration shipped in this package,
+            `python -m lawcorpus.migrate <manifest> --translation-status authoritative`, whose flag
+            has **no default** — the value is typed by the person who knows the corpus, and lands as
+            a committed act with an author and a date rather than as a rule nobody signed. It
+            refuses every token but `authoritative`, for the reason no script can work around: a
+            non-authoritative item owes a `translation_of` (@xsjnzwvu) that an old manifest does not
+            record, so that corpus must be re-harvested rather than rewritten. `Manifest.read`
+            recognises the superseded header and raises once, naming the command and the path,
+            instead of the same missing-column complaint on every row. Tradeoff: `lawcite` stays
+            broken in each repo until its owner runs one command, which is the price of not choosing
+            the value on their behalf.
 
     Layout-only characters are normalised out of stored text = decision:
       id: f5mvj6
