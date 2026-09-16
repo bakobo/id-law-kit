@@ -74,6 +74,26 @@ _COMPARISON_TABLE = str.maketrans(
 
 _WHITESPACE = re.compile(r"\s+")
 
+# The scripts that write no space between words: hiragana, katakana, the CJK ideographs and their
+# extension A, plus the iteration mark and the long-vowel mark. **Hangul is deliberately absent** —
+# Korean writes word spaces, so an optional space between two syllables would find matches across
+# a genuine word boundary and buy nothing.
+_CJK_RANGES = (
+    ("々", "〇"),  # 々 iteration mark, 〆, 〇
+    ("ぁ", "ヿ"),  # hiragana and katakana, including ー
+    ("㐀", "䶿"),  # CJK Unified Ideographs Extension A
+    ("一", "鿿"),  # CJK Unified Ideographs
+)
+# A query-side class matching nothing, an ASCII space, or an ideographic space. Text-side the fold
+# has already turned U+3000 into a space, but a query is also run over raw corpora and over text
+# this package did not extract.
+_LETTER_SPACE = "[ 　]?"
+
+
+def is_cjk(ch: str) -> bool:
+    """Is this a character from a script that writes no space between words?"""
+    return any(low <= ch <= high for low, high in _CJK_RANGES)
+
 
 def normalise_text(text: str) -> str:
     """Fold layout-only characters out of a document. Unconditional, for every language.
@@ -87,26 +107,40 @@ def normalise_text(text: str) -> str:
 def normalise_query(pattern: str) -> str:
     """Rewrite a search pattern so it can reach text that has been through `normalise_text`.
 
-    Two rewrites, both confined to non-ASCII input:
+    Three rewrites, all confined to non-ASCII input:
 
     - a character the text-side fold rewrites is rewritten the same way here, then regex-escaped,
       so that a user who types a full-width parenthesis gets a literal rather than a capturing
       group;
     - a list separator expands to a class matching all five spellings, so typing a middle dot
-      finds the Korean araea.
+      finds the Korean araea;
+    - **two adjacent CJK characters gain an optional space between them**, because Japanese heading
+      typography letter-spaces short words: e-Gov writes the supplementary-provision heading as
+      「附　則」 in 76 of one Act's 77 blocks, so `附則` finds none of them while finding 312
+      cross-references in body text. That cannot be fixed on the text side — collapsing the space
+      unconditionally would weld `第一章　総則` into one token, and telling the two cases apart needs
+      a lexicon — so it is carried here, which is what @liv2lsxs is for. See @ux7izhdj.
 
-    ASCII is never touched, which is what keeps `[0-9]` and `law(fully|ful)` working. The one known
-    hole: a separator typed *inside* a character class the caller wrote produces a nested class.
-    Parsing a regex in order to normalise it would cost more than that trap does.
+    ASCII is never touched, which is what keeps `[0-9]` and `law(fully|ful)` working. The space is
+    inserted only where *both* neighbours are CJK, so it can never land beside a metacharacter,
+    none of which is CJK.
+
+    Two known holes, both documented rather than parsed for. A separator typed *inside* a character
+    class the caller wrote produces a nested class. And a CJK phrase query can now match across a
+    genuine word separator — 「個人情報」 hits a line reading 「個人 情報」 — which is a false positive,
+    visible as soon as the hit is read, where what it replaces is a zero that reads as a finding.
     """
-    out = []
+    out, previous = [], ""
     for ch in pattern:
+        if is_cjk(ch) and is_cjk(previous):
+            out.append(_LETTER_SPACE)
         if ch in SEPARATORS:
             out.append(_SEPARATOR_CLASS)
         elif ch in LAYOUT_ONLY:
             out.append(re.escape(LAYOUT_ONLY[ch]))
         else:
             out.append(ch)
+        previous = ch
     return "".join(out)
 
 

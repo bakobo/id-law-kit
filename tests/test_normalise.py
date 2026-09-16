@@ -168,3 +168,45 @@ class TestExtractorsNormaliseUnconditionally:
 
         out = to_text("<div class='section'><p>Article 22（a）</p></div>")
         assert "Article 22(a)" in out
+
+
+class TestACjkQueryReachesLetterSpacedText:
+    """@ux7izhdj — e-Gov letter-spaces 附　則, so 附則 must reach it without the text being edited."""
+
+    def test_a_query_of_two_adjacent_cjk_characters_tolerates_a_space(self):
+        rx = re.compile(normalise_query("附則"))
+        assert rx.search("附則")
+        assert rx.search("附 則")
+        assert rx.search("附　則")
+
+    def test_it_still_finds_the_cross_references_that_already_worked(self):
+        rx = re.compile(normalise_query("附則"))
+        assert len(rx.findall("附則第一条 ... 附則 ... 附則")) == 3
+
+    def test_kana_counts_as_cjk(self):
+        assert re.compile(normalise_query("この法律")).search("この 法律")
+
+    def test_hangul_does_not_because_korean_writes_word_spaces(self):
+        assert normalise_query("부칙") == "부칙"
+
+    def test_ascii_is_untouched_so_a_character_class_still_works(self):
+        assert normalise_query("[0-9]{2}") == "[0-9]{2}"
+        assert normalise_query("law(fully|ful)") == "law(fully|ful)"
+
+    def test_nothing_is_inserted_where_only_one_side_is_cjk(self):
+        """Keeps the rewrite away from every regex metacharacter, which is never CJK."""
+        assert normalise_query("(法)") == "(法)"
+        assert normalise_query("法+") == "法+"
+        assert normalise_query("A法") == "A法"
+
+    def test_a_separator_still_expands_to_its_five_spellings(self):
+        out = normalise_query("ㆍ")
+        assert "・" in out and "·" in out
+
+    def test_a_separator_between_two_cjk_characters_does_not_gain_a_space(self):
+        """The separator expansion is a class; an optional space beside it would be noise."""
+        out = normalise_query("法ㆍ令")
+        assert "[ 　]?" not in out
+
+    def test_a_full_width_character_is_still_folded_and_escaped(self):
+        assert normalise_query("（") == re.escape("(")
