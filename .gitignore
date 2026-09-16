@@ -7,3 +7,4 @@ __pycache__/
 .coverage
 docs/**/*.pdf
 docs/**/*.html
+/.claude/
