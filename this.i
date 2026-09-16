@@ -854,6 +854,48 @@ Shared method and tooling for the identity-law corpus programme = goal:
             genuinely furniture but is also a structural opener in some tradition will survive — the
             direction this package errs in deliberately, because a surviving header is visible and a
             deleted provision is not.
+          children:
+            Counting up is not enough; a page number advances at least one per page = decision:
+              id: ykhhndj7
+              why: >
+                `_counts_up` asks whether *some* field strictly increases across the pages carrying
+                a shape, and on two pages that is almost free. One field ascends by chance half the
+                time, so a template with three numeric fields clears the test seven times in eight
+                on no evidence whatever. `MIN_FURNITURE_PAGES` is 2, so two pages is all a shape
+                ever has to produce.
+                Measured, that deleted law. `singapore-id`'s PDPA Statutory Bodies Notification is
+                seven pages, and `wef \x00/\x00/\x00]` was carried by two of them with the fields
+                (3, 10, 2016) and (4, 10, 2016). The day-of-month ascends from 3 to 4, the span of 4
+                pages clears a document bar of 3, and two carrying pages clear a bar of two — so the
+                shape became a running head and took `wef 03/10/2016]` and `wef 04/10/2016]` with
+                it, leaving the Schedule reading `12. [Deleted by S 464/2016` with no date. Every
+                SSO instrument annotates its amendments as `[S nnn/yyyy wef dd/mm/yyyy]`, and those
+                numbers ascend chronologically by construction, so the shape is dense in this corpus
+                and its fields are pre-sorted to pass (tick ~6wh3).
+                **Rejected raising `MIN_FURNITURE_PAGES`, which is the obvious fix and a measured
+                disaster.** Seven of `singapore-id`'s twenty instruments are three-page subsidiary
+                instruments whose mirrored head `S 699/2016   2` is carried by exactly two pages,
+                because two is the most evidence a three-page document can offer. A floor of three
+                strips the head from none of them, which is the direction ~52jo is already
+                complaining about — that the rule misses a mirrored running head on a *short*
+                instrument — and a fix that trades one of these for the other is not a fix.
+                Chose to ask what the ascending field is doing rather than whether it ascends. A
+                page number advances **at least one per page**, so the field's total rise is
+                compared against the pages it rose across: `values[-1] - values[0] >= last - first`.
+                The comparison is against the page indices, not the number of carrying rows, which
+                is what makes it survive mirroring — a head printed on alternate pages rises 2 per
+                appearance across 2 pages and passes exactly as a head on every page does. The
+                `wef` date rises 1 across 3 pages and fails, because it is not counting anything
+                about pages.
+                Measured over 36 PDFs from two corpora, **exactly one group changes verdict**: the
+                `wef` shape. Every legitimate running head is kept — all seven two-page mirrored
+                heads, the Interpretation Act's 45 pages, the Indonesian `-\x00-` markers and the
+                `SK No \x00 A` serials. A test that removes one false positive and no true ones
+                across two corpora is as clean a separation as this rule has had.
+                Tradeoff: a running head whose number advances *slower* than the pages is now
+                refused — one number per two-page spread, or a part number that changes every tenth
+                page. Both are furniture this will leave in the text, which is the visible failure;
+                the one it stops was a date that disappeared from a Schedule without trace.
 
         Two edge windows, because only one of the three rules is evidence-free = decision:
           id: kbdz5bmq
