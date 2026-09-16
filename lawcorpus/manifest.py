@@ -56,6 +56,10 @@ LEGACY_COLUMNS = tuple(c for c in COLUMNS if c not in ("translation_status", "tr
 
 MIGRATE_COMMAND = "python -m lawcorpus.migrate {path} --translation-status <token>"
 
+# There is no column for an instrument a source serves only *in part*. `japan-id` carries it in
+# `citation`, as 「（抄）」, so the partiality travels with every quotation — a decent answer, and the
+# reason this is a tick rather than a sixth required field. ~7kgs
+
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _LANG = re.compile(r"^[a-z]{3}$")

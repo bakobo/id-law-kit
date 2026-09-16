@@ -258,6 +258,9 @@ _COLLAPSED_TITLE = re.compile(
     r"^第([一二三四五六七八九十百]{1,6})条から第([一二三四五六七八九十百]{1,6})条まで"
 )
 
+# The `<TOC>` this reads is produced by `japan-id/tools/egov.py`, a 法令標準XML renderer that stays
+# in that repo until a second consumer of e-Gov's schema exists. ~43gp
+#
 # Where a Japanese instrument's main body ends. 附則 restarts at 第一条 in every supplementary block,
 # and an Act carries one per amending act. The ideographic space is optional because e-Gov writes
 # the heading as 「附　則」, letter-spacing the word (@ux7izhdj); the trailing form matches a renderer
