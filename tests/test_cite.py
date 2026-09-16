@@ -231,6 +231,27 @@ class TestGrep:
             corpus.grep("(unclosed")
         assert e.value.transient is False
 
+    def test_grep_checks_the_digest_it_reports_under(self, tmp_path):
+        """@ovqrxx4g — `text` failed closed on a wrong file and `grep` did not check at all.
+
+        The asymmetry is the defect: `lawcite --grep 'domestic relations actions'` reported hits
+        attributed to `URCP-26` from `URCP-26.1`'s text, while `text('URCP-26')` refused the same
+        corpus a moment later. A search that reports an unchecked line is attributing a quotation
+        to an instrument that may not carry it.
+        """
+        root = tmp_path / "corpus"
+        store = CorpusStore(root)
+        stored = store.write("32016R0679", GDPR)
+        Manifest([item(sha256=stored.sha256, bytes=stored.bytes)]).write(root / "MANIFEST.tsv")
+        corpus = Corpus(root)
+        assert corpus.grep("lawfully")
+
+        store.write("32016R0679", "Article 5\nSomething else entirely, lawfully.\n")
+        with pytest.raises(CorpusError) as e:
+            corpus.grep("lawfully")
+        assert "32016R0679" in str(e.value)
+        assert e.value.transient is False
+
 
 class TestCli:
     def test_quote_prints_to_stdout(self, corpus, capsys, monkeypatch):
