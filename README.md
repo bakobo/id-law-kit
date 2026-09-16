@@ -29,16 +29,24 @@ down by the Supreme Court in 2018, but the Act PDF that UIDAI publishes today st
 diligent agent following quote-or-drop over that PDF produces a confidently false claim — the exact
 failure the rule was written to prevent.
 
-So every corpus item here carries two fields beyond provenance:
+The same hole opens a second time wherever the text is not in your language. Quote-or-drop over an
+English rendering of a Japanese Act proves only that somebody translated it — and Japan's and
+Korea's official translation services both disclaim legal effect in their own words, while Korea's
+English privacy statute runs eleven months behind the Korean text it renders.
+
+So every corpus item here carries three fields beyond provenance:
 
 - **`validity`** — `in-force` · `amended` · `struck-down` · `read-down` · `not-yet-applicable` ·
   `repealed`, with a pointer to the instrument that changed it.
 - **`authority_tier`** — `constitutional` · `legislative` · `delegated` · `judicial` ·
   `regulatory-guidance` · `commentary`.
+- **`translation_status`** — `authoritative` · `official-non-authoritative` · `unofficial` ·
+  `machine`, with `translation_of` naming the item this renders. Machine output is never quotable.
 
-Both are **required, with no default**. The fetcher refuses to write an item without them, and
-`cite.py` prints a validity banner above every quote. Enforcement sits at those two chokepoints
-rather than in a document someone has to remember.
+All three are **required, with no default**. The fetcher refuses to write an item without them, and
+`cite.py` prints a validity banner — and a translation banner, where the text is not authentic —
+above every quote. Enforcement sits at those two chokepoints rather than in a document someone has
+to remember.
 
 ## Install
 
@@ -51,16 +59,19 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 ## Layout
 
 ```
-lawcorpus/validity.py      the validity + authority vocabularies, and the quote banner
+lawcorpus/validity.py      the validity, authority and translation vocabularies, and the banners
 lawcorpus/manifest.py      one manifest schema: read, write, validate
 lawcorpus/store.py         gzip corpus store — write-with-hash, read, verify
 lawcorpus/cite.py          the citation primitive; quotes never print without a validity banner
+lawcorpus/normalise.py     the one layout fold, applied to every document whatever its language
+lawcorpus/completeness.py  refuses an extraction that is full but missing provisions
 lawcorpus/formex.py        Formex XML -> citable text (articles, recitals, paragraph numbering)
 lawcorpus/caml.py          CAML XML -> citable text (California codified sections)
 lawcorpus/pdf.py           PDF -> citable text via poppler, with running-furniture removal
+lawcorpus/thai.py          Thai PDFs, which the general path loses characters from silently
 lawcorpus/fetch/eurlex.py  EUR-Lex / Cellar fetcher, shared by eu-data-law and eidas-eudi
 docs/method.md             how the research is done — read before adding to any corpus repo
-docs/taxonomy.md           the duty taxonomy, the authority ladder, the validity vocabulary
+docs/taxonomy.md           the duty taxonomy, the authority ladder, validity and translation
 docs/questions.md          the shared question spine, so findings are comparable across regimes
 ```
 
@@ -87,6 +98,8 @@ One tab-separated schema for every corpus, so `cite.py` and `sweep.py` work ever
 | `authority_tier` | see above — required |
 | `validity` | see above — required |
 | `validity_note` | what changed it: the amending act, the judgment, the repeal |
+| `translation_status` | see above — required |
+| `translation_of` | the `item_id` this renders; mandatory unless `translation_status` is `authoritative` |
 | `version_id` | the version this pins — a consolidation date, a version stamp, a release tag |
 | `lang` | ISO 639-3 (`eng`) |
 | `source_url` | where it was retrieved from |
