@@ -146,6 +146,13 @@ It cannot be derived mechanically for most items, so it lags. **A wrong `validit
 than an absent one** — which is why it is required with no default rather than an optional
 annotation: absence stops the harvest, and a guess would not.
 
+One source hands it over. Indonesia's `jdih.setneg.go.id` carries `status_hukum` per record, and it
+maps onto this vocabulary directly: `berlaku` → `in-force`, `sebagian` → `amended`, `dicabut` →
+`repealed`. `lawcorpus.completeness.validity_from_status_hukum` does the mapping and refuses an
+unknown token rather than letting it default. Treat it as an input to curation rather than a
+substitute for it: Phase 0 saw two endpoints on that host disagree, the search endpoint reporting
+`sebagian` for an instrument whose `/status` returned an empty amendment graph.
+
 ---
 
 ## 4. The translation vocabulary

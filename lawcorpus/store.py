@@ -56,13 +56,22 @@ class CorpusStore:
     def path_for(self, item_id: str, suffix: str = ".txt") -> Path:
         return self.root / f"{_safe_id(item_id)}{suffix}.gz"
 
-    def write(self, item_id: str, text: str, suffix: str = ".txt") -> StoredText:
+    def write(self, item_id: str, text: str, suffix: str = ".txt", expect=None) -> StoredText:
+        """Write `text` for `item_id`, refusing an empty body and an incomplete one.
+
+        `expect` is a `completeness.Expectation` — what an independent source says this instrument
+        contains. Supplied, it is checked *before* anything reaches disk, so a refusal leaves no
+        half-instrument behind. Omitted, only the emptiness guard runs: most corpora have no
+        declared structure to check, and a check nobody can satisfy would be turned off.
+        """
         item_id = _safe_id(item_id)
         if not text:
             raise StoreError(
                 f"Refusing to store an empty body for '{item_id}'. A zero-byte corpus entry is "
                 f"always a failed retrieval that looked like a success — check the fetch first."
             )
+        if expect is not None:
+            expect.verify(text)
         raw = text.encode("utf-8")
         path = self.path_for(item_id, suffix)
         path.parent.mkdir(parents=True, exist_ok=True)

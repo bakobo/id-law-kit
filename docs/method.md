@@ -183,6 +183,26 @@ Rules that follow:
 
 - **Refuse empty extractions.** A PDF that extracts to whitespace is a scanned image needing OCR,
   not a provision with no text. Storing it puts a blank entry in the corpus that reads like success.
+
+- **Refuse *incomplete* extractions, which is the harder half.** The empty guard catches the failure
+  that announces itself. Indonesia's UU 27/2022 is fifty 400-dpi CCITT scans with an OCR layer: it
+  extracts to 52 KB of entirely plausible Indonesian, passes every emptiness check, and is missing
+  Pasal 22, 70 and 72 and the whole of BAB XI–XII. `Pasal 22` returns 0 where `Pasal 21` returns 3
+  and `Pasal 23` returns 2.
+
+  So `lawcorpus/completeness.py` compares an extraction against a declared structure and **aborts**,
+  the way the California harvest aborts against the OAL notice. It catches interior gaps *and*
+  truncated tails — the Indonesian failure is both — and the error names the missing provisions
+  rather than reporting a count, because a count sends the next reader looking and a list tells them
+  where. `CorpusStore.write(..., expect=...)` refuses before anything reaches disk.
+
+  **Three sources declare their own structure, so most instruments need no hand-written oracle.**
+  Japan's per-instrument `<TOC><ArticleRange>` is authored by the publisher, so it is independent
+  evidence and needs no second document. Korea's article numbering is gapless from 1 to the maximum,
+  because a repealed article survives as a `삭제` placeholder — it held 7 for 7 in Phase 0, and being
+  self-derived it sees an interior gap but not a truncated tail. Indonesia's per-record
+  `status_hukum` maps onto the `validity` vocabulary directly, which is the one place in this
+  programme where validity is machine-derived rather than curated.
 - **Normalise layout-only characters**, and only those — **unconditionally, for every document,
   whatever language it is in.** No-break spaces, figure spaces, the ideographic space, non-breaking
   and soft hyphens, zero-width characters and the full-width variants of ASCII all go; curly quotes,
