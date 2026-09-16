@@ -419,7 +419,14 @@ def raw_pages(path, layout: bool = True) -> list:
 # that counted it would refuse Japanese documents wholesale. See @k76mmqlc.
 _GLYPH_LINE = re.compile(r"^[A-Za-z]{1,2}$")
 # A watermark is stamped on every page, so the test is the share of pages carrying a glyph line
-# rather than how many there are — structural, not magnitude. ~3azt
+# rather than how many there are — structural, not magnitude.
+#
+# **This threshold does not separate, and that is why nothing calls it by default.** Measured over
+# 11 India Code PDFs and 17 controls (@uf4epdvm): the 2021 Regulations score 0.966 and two
+# watermarked Gazette PDFs score exactly 0.500, while `PUTTASWAMY-2018-SCR` — sound, stored, and a
+# law report whose margin prints paragraph markers `A` to `H` one per line on every page — scores
+# **0.998**. The control maximum is above the positive minimum, so no threshold admits the sound
+# documents and refuses the spoiled ones.
 WATERMARK_PAGE_SHARE = 0.5
 
 
@@ -457,6 +464,12 @@ def check_reading_order(raw_mode_pages: list, what: str = "this PDF") -> None:
     a watermarked page this package can store: `-layout` moves the text the glyphs land in, and
     without it the glyphs sit on lines of their own that the rejoiner welds into a sentence. See
     @k76mmqlc.
+
+    **Opt-in, for a caller that knows its publisher stamps every page.** Nothing calls this by
+    default, because measured against the real PDFs the statistic does not separate: a law
+    report's margin column of single letters scores higher than any watermark (@uf4epdvm, and the
+    numbers are on `WATERMARK_PAGE_SHARE`). Assert it where you have judged the source; do not
+    reach for it as a general check on an unknown one.
     """
     share = watermark_share(raw_mode_pages)
     if share <= WATERMARK_PAGE_SHARE:
@@ -472,14 +485,19 @@ def check_reading_order(raw_mode_pages: list, what: str = "this PDF") -> None:
     )
 
 
-def extract(path, layout: bool = True, verify_order: bool = True) -> str:
+def extract(path, layout: bool = True, verify_order: bool = False) -> str:
     """Extract `path` to text with poppler, then clean it.
 
-    In layout mode the document is also rendered without `-layout` and checked for a watermark,
-    because layout mode does not merely pollute the text — it can move it, and once it has, the
-    evidence that it did is gone. That costs a second poppler run and converts a silent false
-    negative into a refusal (@k76mmqlc). `verify_order=False` is the escape hatch for a caller
-    that has already made that judgement.
+    `verify_order=True` asks for @k76mmqlc's watermark check, which renders the document a second
+    time without `-layout` — layout mode does not merely pollute the text, it can move it, and
+    once it has, the evidence that it did is gone.
+
+    **It is off by default, and the default changed in @uf4epdvm.** Run against the PDFs it was
+    built from, the check refuses sound documents: a law report scores 0.998 where the watermarked
+    2021 Regulations score 0.966, and `aadhaar` extracts its judgments layer on exactly this path.
+    A guard whose first firing is wrong is the one that gets turned off, so this one asks. The
+    reordering it was built for is real and is now undetected here; catching it needs geometry
+    (`pdftotext -bbox`), not a statistic over the text.
     """
     pages = raw_pages(path, layout)
     if layout and verify_order:

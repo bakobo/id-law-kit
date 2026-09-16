@@ -616,9 +616,27 @@ class TestAWatermarkedPdfIsRefused:
         pages = [f"条\n本規定の内容{n}について。\n" for n in range(1, 5)]
         assert check_reading_order(pages) is None
 
+    def test_a_law_reports_margin_column_scores_as_high_as_a_stamp(self):
+        """@uf4epdvm — the measurement that stopped this being a default refusal.
+
+        A law report prints paragraph markers A to H down the margin of every page, one letter
+        per line. `PUTTASWAMY-2018-SCR` — sound, stored, and one of the documents `aadhaar`
+        exists to read — scores 0.998 against the 2021 Regulations' 0.966, so no threshold on
+        this statistic admits the first and refuses the second. Pinned rather than fixed: the
+        function is one publisher's tell, and the honesty is in saying so at the call site.
+        """
+        pages = [
+            "\n".join([str(n), "A", "B", "C", "D", "E", "F", "G", "H",
+                       "SUPREME COURT REPORTS", f"Dignity has a central normative role, {n}."])
+            for n in range(1, 21)
+        ]
+        assert watermark_share(pages) == 1.0
+        with pytest.raises(ReadingOrderError):
+            check_reading_order(pages)
+
 
 @pdftotext_required
-class TestExtractVerifiesTheReadingOrder:
+class TestExtractVerifiesTheReadingOrderOnlyWhenAsked:
     def test_a_clean_pdf_still_extracts(self, tmp_path):
         from lawcorpus.pdf import extract
 
@@ -626,18 +644,22 @@ class TestExtractVerifiesTheReadingOrder:
         pdf.write_bytes(minimal_pdf([["The business shall comply with this Part."]]))
         assert "The business shall comply" in extract(pdf)
 
-    def test_a_stamped_pdf_is_refused(self, tmp_path):
+    def test_a_stamped_pdf_extracts_by_default_because_the_signal_does_not_separate(self, tmp_path):
+        """@uf4epdvm — measured, the control maximum (0.998) is above the positive minimum (0.500).
+
+        `aadhaar/tools/harvest.py:507` extracts its judgments on this path, so a default refusal
+        here rejected the Supreme Court Reports on the next harvest.
+        """
         from lawcorpus.pdf import extract
 
         pdf = tmp_path / "stamped.pdf"
         pdf.write_bytes(
-            minimal_pdf([["In", f"Operative sentence {n} of the instrument.", "e"]
-                         for n in range(1, 5)])
+            minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
+                         for c in "abcd"])
         )
-        with pytest.raises(ReadingOrderError):
-            extract(pdf)
+        assert "Operative sentence" in extract(pdf)
 
-    def test_the_check_can_be_declined_by_a_caller_that_has_already_judged_it(self, tmp_path):
+    def test_a_caller_that_knows_its_publisher_can_still_ask_for_the_check(self, tmp_path):
         from lawcorpus.pdf import extract
 
         pdf = tmp_path / "stamped2.pdf"
@@ -645,7 +667,8 @@ class TestExtractVerifiesTheReadingOrder:
             minimal_pdf([["In", f"Operative sentence {c} of the instrument.", "e"]
                          for c in "abcd"])
         )
-        assert "Operative sentence" in extract(pdf, verify_order=False)
+        with pytest.raises(ReadingOrderError):
+            extract(pdf, verify_order=True)
 
     def test_raw_mode_is_not_checked_because_the_caller_has_chosen_it(self, tmp_path):
         from lawcorpus.pdf import extract
