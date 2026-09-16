@@ -1,6 +1,7 @@
 # A manifest has no field for a PARTIAL instrument; japan-id encodes it as （抄） inside citation
 kind: todo
 created: 2026-09-16T17:50Z
+closed: 2026-09-16T20:05Z
 
 - 2026-09-16T17:50Z e-Gov serves some instruments as <MainProvision Extract="true"> — deliberately a part, with the table of contents still describing the whole. japan-id marks that by putting 「（抄）」, the ordinary Japanese excerpt mark, into the manifest's citation field, so the partiality travels with every quotation. That is a decent answer and better than nothing: a reader who cannot see it reads the absence of a provision as the law not containing one, which is exactly the negative claim a corpus exists to support.
 
