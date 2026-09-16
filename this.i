@@ -69,6 +69,60 @@ Shared method and tooling for the identity-law corpus programme = goal:
         have the competence to weigh, so archiving it would produce false assurance. Tradeoff: any
         finding that turns on a term of art is weaker than it looks, and must say so.
 
+    translation_status is the Asian analogue of validity = decision:
+      id: elsvh64d
+      why: >
+        Quote-or-drop proves a passage was *published*. `validity` closes the gap between published
+        and *in force*. Over a translation neither closes the gap between the text quoted and the
+        text that binds: an English My Number Act proves only that somebody translated it. Japan
+        says so in its own words — 「法令翻訳は、正文ではなく…法的効力を有するのは日本語の法令自体」, where
+        正文 is the technical term for authentic text — and KLRI says the Korean translations are
+        "neither official nor legally effective". The KLRI English PIPA on offer is a 2025-10-02
+        version against a Korean current text of 2026-09-11, so the staleness is real and dated
+        rather than hypothetical. So every corpus item carries `translation_status`
+        (authoritative | official-non-authoritative | unofficial | machine), required with no
+        default, enforced at the same two chokepoints as `validity` — the item refuses to construct
+        without it, and `lawcite` prints a translation banner above every quote whose item is not
+        `authoritative`. Rejected making it optional-with-a-default of `authoritative`, which would
+        have made every EU item silently correct and every Asian item silently wrong; an absent
+        value must stop a harvest the way an absent `validity` does. Rejected inferring it from
+        `lang`, because the hazard is not language: the EU's 24 versions are all authentic, and
+        Singapore is natively English while SSO clause (8) declares its own text unofficial and
+        disapplies Interpretation Act s48 — that is an `authority_tier` hazard and recording it here
+        would be a category error the field must not tempt anyone into. Tradeoff: a fourth
+        hand-curated field on every item in five corpora that have no translation problem at all,
+        which is the price of a required field with no default.
+      children:
+        A translation is a separate item linked by translation_of = decision:
+          id: xsjnzwvu
+          why: >
+            Chose a second corpus item carrying `translation_of` — the `item_id` of the original —
+            over a per-item `translation:` sub-record or a parallel-text column. A translation has
+            its own URL, retrieval date, sha256 and staleness, which is exactly the set of fields
+            `ManifestItem` already carries, so a sub-record would duplicate the schema and a column
+            would give one row two provenance stories. The link is checked when the manifest is
+            written, not merely declared, because an unresolvable pointer is the kind of defect that
+            surfaces years later in a citation. Two rules ride on it: a non-`authoritative` item must
+            name its original, mirroring `validity_note`'s mandatory-when-not-in-force rule, and it
+            must sit at `authority_tier: commentary`, because a translation that is not authentic
+            text cannot outrank the instrument it renders. Tradeoff: a corpus holding a translation
+            whose original is out of scope must fetch the original anyway, which is a real cost and
+            is the point — an unanchored translation is what this field exists to refuse.
+
+        Machine translation is never quotable as current law = decision:
+          id: c5jtwe4i
+          why: >
+            `machine` makes `quotable_as_current_law()` False for the item however good its
+            `validity` is, so machine output is filtered out by `lawcite --in-force-only` and carries
+            a banner saying it is a reading aid rather than evidence. Rejected refusing to store or
+            to print it at all: a machine translation is genuinely useful for deciding *which*
+            provision to have rendered properly, and refusing to print would push it into an
+            untracked scratch file outside every guard this package applies. Rejected treating it as
+            merely another tier of non-authoritative text, because the failure mode differs in kind —
+            an official-but-non-authoritative translation is wrong at the margin, while a machine
+            translation can invert a negation with no signal at all. Tradeoff: the corpus can hold
+            text nobody may quote, which is the same tradeoff `struck-down` already takes.
+
     Layout-only characters are normalised out of stored text = decision:
       id: f5mvj6
       why: >
