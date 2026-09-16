@@ -77,7 +77,13 @@ STRUCTURAL_OPENERS = {
     "common-law": r"""
         §                      # section sign
       | \([a-zA-Z0-9]{1,4}\)        # (a) (1) (iii) (A)
-      | \d+[A-Z]{0,2}\.             # 1.  23A.  16O.  — see @zr3b5ll2, and ~4a6m
+      # 1.  23A.  16O.  — see @zr3b5ll2. The lookahead is @avcicqvb: a heading is `27.—(1)` or
+      # `30. The Controller`, so the stop is followed by an em-dash or by the provision, while a
+      # year wrapped onto a line of its own is followed by nothing. Without it `1994.` opens a
+      # block and `completeness.scan` reads it as section 1994, which refused a correct extraction
+      # in 4 of `singapore-id`'s 20 instruments. The `indonesian` entry below already required
+      # its trailing space; this entry was the inconsistent one.
+      | \d+[A-Z]{0,2}\.(?=[ \t]*\S)
       | ARTICLE\b | CHAPTER\b | DIVISION\b | TITLE\b
       | Note:
       | [A-Z][A-Z ’'\-]{6,}\s*$   # an all-caps heading line

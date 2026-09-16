@@ -257,6 +257,55 @@ class TestALetteredSectionNumberOpensABlock:
         for letter in "AOS":
             assert f"\n16{letter}.—(1) Provision text." in out
 
+
+class TestAWrappedYearIsNotAProvisionNumber:
+    """@avcicqvb — a PDF wraps wherever the column ends, so a year does land at a line start.
+
+    @zr3b5ll2 rejected `singapore-id`'s lookahead on the reasoning that this "cannot arise" in a
+    line-anchored pattern. It arises in 4 of that repo's 20 stored instruments, and with
+    @qd6p2f3x's order check in place it refuses a correct extraction.
+    """
+
+    def test_a_wrapped_year_is_rejoined_to_the_sentence_it_ends(self):
+        # ETA 2010, the case that was measured.
+        out = clean_pages([
+            "(3A) To avoid doubt, subsection (1) does not apply in relation to any liability "
+            "under section 45E, 45F or 45N of the Broadcasting Act\n1994.\n"
+        ])
+        assert "Broadcasting Act 1994." in out
+        assert "\n1994." not in out
+
+    def test_a_wrapped_commencement_year_is_rejoined(self):
+        # The two sets of National Registration Regulations wrap on the same phrase.
+        out = clean_pages(["These Regulations come into operation on 1 January\n2017.\n"])
+        assert "on 1 January 2017." in out
+
+    def test_a_heading_followed_by_an_em_dash_is_still_an_opener(self):
+        out = clean_pages(["Marginal note\n27.—(1) The Controller must publish."])
+        assert "\n27.—(1) The Controller must publish." in out
+
+    def test_a_heading_followed_by_a_space_and_its_text_is_still_an_opener(self):
+        out = clean_pages(["Marginal note\n30. The Controller may refuse."])
+        assert "\n30. The Controller may refuse." in out
+
+    def test_a_decimal_paragraph_number_is_still_an_opener(self):
+        """The refutation of the stricter rule, pinned.
+
+        Excluding a digit after the stop would have cleared a stray date too, and `PUTTASWAMY-2018`
+        refutes it: `60.4.` and `125.2.` are the judgment's own paragraph numbers, and the stricter
+        rule welds them into the line above.
+        """
+        out = clean_pages(["Preceding sentence with no stop\n60.4. Presently verification of "
+                           "original documents is rare."])
+        assert "\n60.4. Presently verification" in out
+
+    def test_a_date_opening_a_line_is_still_read_as_an_opener_and_that_is_recorded(self):
+        # `2.6.2025` in the Certification Authority Regulations. It sits in front matter, outside
+        # the body window, so it refuses nothing; clearing it costs the paragraph numbers above.
+        out = clean_pages(["Prepared under the authority of the Revised Edition of the Laws Act "
+                           "1983\n2.6.2025\n"])
+        assert "\n2.6.2025" in out
+
     def test_a_wrapped_sentence_is_still_rejoined(self):
         # The change must not turn every capitalised continuation into a new block.
         out = clean_pages(["means the California\nPrivacy Protection Agency."])
@@ -520,9 +569,16 @@ class TestStructuralOpenersPerTradition:
     def test_a_japanese_opener_is_structural(self, line):
         assert structural_pattern().match(line), line
 
-    @pytest.mark.parametrize("line", ["23A.", "§ 7001.", "(a) means", "ARTICLE III", "Note:"])
+    @pytest.mark.parametrize(
+        "line", ["23A.—(1)", "23A. Heading", "§ 7001.", "(a) means", "ARTICLE III", "Note:"]
+    )
     def test_a_common_law_opener_is_still_structural(self, line):
         assert structural_pattern().match(line), line
+
+    @pytest.mark.parametrize("line", ["1994.", "2017.   ", "23A."])
+    def test_a_number_and_a_stop_with_nothing_after_them_is_not_an_opener(self, line):
+        """@avcicqvb — that shape is a year a PDF wrapped onto a line of its own."""
+        assert not structural_pattern().match(line), line
 
     def test_bab_one_is_the_case_the_all_caps_rule_cannot_reach(self):
         # indonesia-id's sharpest observation: the all-caps rule matches BAB XVII and fails BAB I,
@@ -532,7 +588,7 @@ class TestStructuralOpenersPerTradition:
         assert structural_pattern("indonesian").match("BAB I")
 
     def test_a_subset_of_traditions_can_be_asked_for(self):
-        assert structural_pattern("common-law").match("23A.")
+        assert structural_pattern("common-law").match("23A.—(1)")
         assert not structural_pattern("common-law").match("Pasal 13")
 
     def test_an_unknown_tradition_is_refused_rather_than_ignored(self):
