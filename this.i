@@ -412,6 +412,73 @@ Shared method and tooling for the identity-law corpus programme = goal:
             more public name to keep stable, against a caller otherwise reaching into a private one,
             which is the same dependency with none of the obligation admitted.
 
+        A sub-numbered provision is a value, not a number it collapses onto = decision:
+          id: kolycpun
+          why: >
+            `scan` read `มาตรา ๓๒/๒` as 32, `第六条の二` as 6, `제24조의2` as 24 and `Pasal 13A` as 13 —
+            four jurisdictions, one behaviour, and it was written down as intended rather than
+            noticed as a defect. Inserted provisions are how every one of these systems amends a
+            statute without renumbering it, so the collapse is not an edge case; it is the ordinary
+            shape of an amended act. What it costs is an oracle that cannot tell an inserted section
+            from a duplicate heading, so a declaration of `32` is satisfied by a document that
+            carries only `32/2` — the oracle silently accepting a short extraction, which is the one
+            thing @zpycgven exists to stop.
+            Chose a value type, `Provision`, over the two alternatives that keep `scan` returning
+            plain integers. A decimal (32.2) collides — 32/2 and 32/20 are not 32.2 and 32.20 — and a
+            string loses ordering, where the whole point of the sequence is that 6/2 sorts before
+            6/10 and both sort between 6 and 7. `Provision` carries the base and a tuple of
+            sub-tokens, and **compares equal to its own base integer when it has no sub-number**, so
+            an `Expectation` declared over ordinary integers — which is every consumer today, and
+            what `korean_gapless` derives — keeps working untouched. Hashing agrees with that
+            equality, because the check is a set membership test and a type that is equal but hashes
+            differently fails it silently.
+            Sub-numbering is declared per numeral system rather than built into `scan`, so Thai's
+            `/`, Japanese's `の` and common-law's bare letter suffix are three table entries and a
+            fourth is a line. A letter suffix sorts after the bare number and before the next one,
+            which is what `23 < 23A < 23B < 24` requires and what a tuple of mixed tokens gives once
+            each token carries its own kind in the sort key.
+            Rejected Korean's `조의2`, which needs `조` in the pattern and would put a Korean particle
+            into the numeral system every Latin corpus uses. Rejected folding a letter suffix to a
+            number: `23A` and `23/1` are different provisions in different drafting traditions, and
+            making them the same value would be this defect again with the collapse moved.
+            Tradeoff, and it is the loud one: **`scan` no longer returns integers**, so a consumer
+            doing arithmetic on its result breaks. `Provision` carries `__index__` so `range()` and
+            `int()` reach the base, and `korean_gapless` is corrected here — but a corpus repo that
+            scans and adds must be re-run, and a document carrying `13A` where its oracle declares
+            `13` now fails where it used to pass, which is the check working rather than the change
+            regressing.
+
+        An instrument with no provision labels is checkable, and its own index is not evidence = decision:
+          id: q5fyyb4q
+          why: >
+            `Expectation` scans `<label><number>` headings, and Singapore's drafting has no label:
+            a section heading is a bare `3.—(1)`. `singapore-id` could not use the class at all and
+            wrote its own, which is the per-corpus duplication this package exists to prevent — and
+            it hit a second failure in the same document, because an SSO PDF prints its own table of
+            contents before the body, so every section number appears two to four times and the
+            out-of-order check fires on a perfectly good extraction.
+            Two additions, and they are deliberately not a switch that turns the order check off.
+            `terminator` is a regex the number must be followed by, which is what makes a label-less
+            scan safe — `3.` followed by an em dash or a space is a heading, where a bare `3` at the
+            start of a line is any wrapped list item. An empty label with no terminator is refused
+            rather than scanned, because that pattern matches most of a document and an oracle that
+            matches everything passes everything. `start` is the mirror of `boundary`: it marks
+            where the body begins, and the text before it is dropped. With the contents page cut off
+            the front and the Schedules cut off the back, the numbers are in ascending order again
+            and the check that @zpycgven relies on survives intact.
+            `start` fails closed. A declared opener that is not found raises rather than scanning the
+            whole text, because the failure it prevents is the document's own index vouching for
+            sections the body may not contain — a truncated PDF still lists its missing tail on its
+            contents page, so an oracle reading both certifies the damage as complete.
+            Rejected `singapore-id`'s shape of answer, a set-membership check with the ordering
+            replaced by a highest-present tail/interior classification. Its diagnosis is better and
+            its check is weaker, and the weaker half is load-bearing: order is what caught a renderer
+            dropping sub-item numbers in `japan-id` (@y3aozl55). Keeping the order check and cutting
+            the front matter gets both. Rejected a caller-supplied callable for the body boundary,
+            which is a regex wearing a function. Tradeoff: an instrument whose body opener cannot be
+            expressed as a line regex is not served here, and `_window` gives a caller no way to say
+            "the second match" — recorded now rather than discovered by a corpus that needs it.
+
     A lettered provision number is a structural opener = decision:
       id: zr3b5ll2
       why: >
