@@ -110,17 +110,47 @@ regime's repo.
 
 ## Current coverage
 
+*Nine corpora as of 2026-09-16. `japan-id`, `singapore-id`, `thailand-id` and `indonesia-id` were
+built on 2026-09-15/16 and the `aadhaar` corpus was rebuilt at provision-level granularity in the
+same window.*
+
 | | Q1 | Q2 | Q3 | Q4 | Q5 | Q6 | Q7 | Q8 |
 |---|---|---|---|---|---|---|---|---|
-| `utah-id-law` | ✅ | ✅ | ◐ | — | — | — | — | — |
-| `eu-data-law` | — | — | — | ◐ | ◐ | — | — | — |
-| `eidas-eudi` | — | — | — | — | — | — | ◐ | — |
-| `ccpa` | — | — | — | ◐ | — | — | — | — |
-| `aadhaar` | — | — | — | — | — | — | — | — |
+| `utah-id-law` | ✅ | ✅ | ◐ | ◐ | ✖ | ◐ | ◐ | ✖ |
+| `eu-data-law` | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | — | ✖ |
+| `eidas-eudi` | ◐ | ◐ | ◐ | ✖ | — | ◐ | ◐ | ✖ |
+| `ccpa` | ◐ | ◐ | ◐ | ◐ | — | ◐ | ◐ | ✖ |
+| `japan-id` | ◐ | ◐ | ◐ | ◐ | ✖ | ✖ | ◐ | ✖ |
+| `singapore-id` | ◐ | ◐ | — | ◐ | ◐ | ✖ | ◐ | ✖ |
+| `thailand-id` | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ✖ |
+| `indonesia-id` | ◐ | ◐ | — | ◐ | ✅ | ◐ | — | ✖ |
+| `aadhaar` | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ✖ |
+| **`id-law-kit/findings`** (cross-regime) | **✅** | — | ◐ | **✅** | ◐ | ◐ | — | **✅** |
 
-✅ answered · ◐ corpus supports it, finding not yet written · — not started
+✅ answered, with a written finding · ◐ corpus supports it, finding not yet written · ✖ not
+supportable from this corpus — the layer is absent, out of scope, or the question is not live here ·
+— not started
 
-Only `utah-id-law` has written findings. The other four have corpora and no analysis, which is the
-intended order: **harvest first, so the expensive online research is not repeated when the analysis
-happens.** Q4 is the cheapest first comparative finding, because the corpora already contain the
-answer in four regimes.
+**Read the ✖ column on Q8 as the result it is.** Not one of the nine corpora holds an enforcement
+decision, penalty order or supervisory-authority action. All nine hold statutory maxima instead.
+That is now a nine-for-nine finding rather than a suspicion, and for two regimes it cannot change
+yet: India's Data Protection Board provisions do not commence until 13 May 2027, and Indonesia's
+Pasal 58 supervisory institution is not shown constituted in its corpus.
+
+**The Asian repos' `findings/` mostly answer a different spine.** `japan-id`, `singapore-id`,
+`thailand-id`, `indonesia-id` and `aadhaar` were built against `asia-id-strategy.md` §3's Q9–Q14 —
+credential stack, trust infrastructure, extraterritorial verification, relying-party gates, ACDC
+derivation, machine-readability — so their written findings do not fill this table even where the
+corpus plainly supports a Q1–Q8 answer. The one exception is
+`indonesia-id/findings/pdp-law-cross-border-transfer-is-a-three-step-ladder.md`, which is a Q5
+finding in everything but name.
+
+**Cross-regime findings live in [`../findings/`](../findings):**
+
+- [`q4-requester-verification-is-not-universal.md`](../findings/q4-requester-verification-is-not-universal.md) — Q4 across nine regimes. **It refutes the claim in Q4 above and in `taxonomy.md` §1.3 that this duty family is present in every regime**; four of the nine have a right of access with no duty on the recipient to check who is asking. Those two sentences are left standing pending their owner's decision; tick `~4dae` carries the correction.
+- [`q1-no-regime-has-a-general-assurance-baseline.md`](../findings/q1-no-regime-has-a-general-assurance-baseline.md) — Q1 across nine. No regime answers yes. Indonesia and India are a third shape — proofing once at the front door, assertion thereafter — that neither Utah's answer nor a general baseline describes.
+- [`q3-q5-q6-q8-what-nine-corpora-can-support.md`](../findings/q3-q5-q6-q8-what-nine-corpora-can-support.md) — the triage behind the ◐ and ✖ cells above, plus six defects that only a reader holding all nine at once could find.
+
+Harvesting still comes before analysis, for the reason it always did — **so the expensive online
+research is not repeated when the analysis happens.** What has changed is that the analysis has
+started, and the cheapest remaining work is ranked at the end of the triage finding.
