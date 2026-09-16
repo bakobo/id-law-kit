@@ -38,7 +38,14 @@ EDGE_LINES = 3
 # carry their own evidence and do not need position to supply it, which is what lets them see past
 # a scanner's emblem: `indonesia-id` measured Perpres 95/2018 OCR'ing the Garuda into three to six
 # lines of noise, landing the real running head at line index 5 to 7 and outside a window of 3.
-# ~4cp4
+#
+# Eight was one sample when it was chosen. Measured since over 24 PDFs from two corpora, the
+# deepest rank a *sound* document needs is 5, several want 4, and the Garuda document itself gains
+# one further line only at a window of 12; everything deeper in the sample is a watermarked PDF
+# whose glyph fragments pad the head of the page, which is not a document this package can store.
+# So 8 sits above every sound case with margin and below the point where it would be chasing a
+# watermark, and it stays a single default rather than becoming a per-source knob nobody has the
+# evidence to set. See @zga5midk.
 FURNITURE_LINES = 8
 # A line must appear at the same edge on at least this fraction of pages to count as furniture.
 FURNITURE_THRESHOLD = 0.6
@@ -301,6 +308,13 @@ def strip_repeated_furniture(pages: list) -> list:
     tight `EDGE_LINES`; the two rules that prove furniture from repetition across pages reach
     `FURNITURE_LINES` deep, which is what lets them see a running head printed below a scanner's
     emblem. See @kbdz5bmq.
+
+    **All three rules match a whole line, and that is what makes dropping safe.** The text rule
+    needs the entire line repeated across pages, the shape rule needs it repeated with only its
+    numeric fields varying, and `_PAGE_NUMBER` needs the line to be nothing but a number, so a line
+    carrying unique body text satisfies none of them and cannot be taken out from under a sentence.
+    That is why this drops lines and `indonesia-id`'s `_FURNITURE_PREFIX`, which rewrites them, was
+    not lifted: rewriting needs a rule about which part of a line to keep. See @zga5midk.
     """
     if len(pages) < 2:
         return list(pages)
