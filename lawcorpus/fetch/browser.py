@@ -1,6 +1,6 @@
 """Browser fetcher — for the two obstacles a browser can actually remove, and no others.
 
-Phase 0 of the Asian programme (`asia-id-strategy.md` §8.5) established that every *primary*
+Phase 0 of the Asian corpus work established that every *primary*
 acquisition route needs no browser: Japan's e-Gov API, Singapore's `?ViewType=Pdf`, Indonesia's
 `jdih.setneg.go.id` JSON API, Thailand's `apig.law.go.th`. Use `urllib` for those. A browser earns
 its place against exactly two secondary obstacles that nonetheless hold load-bearing answers:

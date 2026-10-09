@@ -1400,7 +1400,7 @@ Shared method and tooling for the identity-law corpus programme = goal:
     A browser fetcher, scoped to the two obstacles a browser can actually remove = decision:
       id: lkm7beuo
       why: >
-        Phase 0 (asia-id-strategy.md §8.5) established that every *primary* acquisition route in the
+        Phase 0 of the Asian corpus work established that every *primary* acquisition route in the
         Asian set needs no browser: Japan's e-Gov API, Singapore's `?ViewType=Pdf`, Indonesia's
         `jdih.setneg.go.id` JSON API, Thailand's `apig.law.go.th`. A browser earns its place against
         exactly two secondary obstacles that nonetheless hold load-bearing answers. First, Cloudflare

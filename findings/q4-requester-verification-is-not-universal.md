@@ -1,6 +1,6 @@
 # Requester verification is not the connective tissue. It is a European and Californian design, absent from four of the nine corpora
 
-*Cross-regime finding. Corpora read 2026-09-16 from the sibling checkouts named below. Answers [`docs/questions.md`](../docs/questions.md) **Q4** — "what must a party do to verify a rights-requester's identity?" — across nine regimes.*
+*Cross-regime finding. Corpora read 2026-09-16 from the sibling checkouts named below. The Japan, Singapore, Thailand and Indonesia corpora are not public, so counts and quotes from them cannot be re-run from a public checkout; the claims stand as read. Answers [`docs/questions.md`](../docs/questions.md) **Q4** — "what must a party do to verify a rights-requester's identity?" — across nine regimes.*
 
 **Conclusion, in four parts.**
 
@@ -13,7 +13,7 @@
 
 ## 0. The artefacts, because a negative that names no artefact list is not a finding
 
-Every count and every zero below is over these items and no others. The rule is `thailand-id`'s, adopted at its `this.i` @j4viqege after `credential` was published as 0 over "the five ThaID artefacts" — a set nobody, including its author, could reconstruct — when `client_credentials` in an OAuth grant-types list made it 1.
+Every count and every zero below is over these items and no others. The rule comes from the Thailand corpus, adopted in its intent record (@j4viqege) after `credential` was published as 0 over "the five ThaID artefacts" — a set nobody, including its author, could reconstruct — when `client_credentials` in an OAuth grant-types list made it 1.
 
 | Corpus | Manifest | Items | `authority_tier` | `validity` |
 |---|---|---:|---|---|
@@ -26,18 +26,18 @@ Every count and every zero below is over these items and no others. The rule is 
 | [`../../eidas-eudi/corpus-specs`](../../eidas-eudi/corpus-specs) | `MANIFEST.tsv` | 3 | 3 commentary | 3 in-force |
 | [`../../ccpa/corpus`](../../ccpa/corpus) | `MANIFEST.tsv` | 46 | 46 legislative | 46 in-force |
 | [`../../ccpa/corpus-regs`](../../ccpa/corpus-regs) | `MANIFEST.tsv` | 91 | 91 delegated | 61 in-force, 30 amended |
-| [`../../japan-id/corpus`](../../japan-id/corpus) | `MANIFEST.tsv` | 40 | 6 legislative, 34 delegated | 38 in-force, 2 repealed |
-| [`../../japan-id/corpus-specs`](../../japan-id/corpus-specs) | `MANIFEST.tsv` | 2 | 2 commentary | 2 in-force |
-| [`../../singapore-id/corpus`](../../singapore-id/corpus) | `MANIFEST.tsv` | 20 | 4 legislative, 16 delegated | 20 in-force |
-| [`../../singapore-id/corpus-specs`](../../singapore-id/corpus-specs) | `MANIFEST.tsv` | 5 | 5 commentary | 5 in-force |
-| [`../../thailand-id/corpus`](../../thailand-id/corpus) | `MANIFEST.tsv` | 35 | 35 legislative | 17 in-force, 18 amended |
-| [`../../thailand-id/corpus-specs`](../../thailand-id/corpus-specs) | `MANIFEST.tsv` | 14 | 9 commentary, 5 delegated | 11 in-force, 3 repealed |
-| [`../../indonesia-id/corpus`](../../indonesia-id/corpus) | `MANIFEST.tsv` | 11 | 6 legislative, 5 delegated | 6 in-force, 5 amended |
+| Japan `corpus` (not public) | `MANIFEST.tsv` | 40 | 6 legislative, 34 delegated | 38 in-force, 2 repealed |
+| Japan `corpus-specs` (not public) | `MANIFEST.tsv` | 2 | 2 commentary | 2 in-force |
+| Singapore `corpus` (not public) | `MANIFEST.tsv` | 20 | 4 legislative, 16 delegated | 20 in-force |
+| Singapore `corpus-specs` (not public) | `MANIFEST.tsv` | 5 | 5 commentary | 5 in-force |
+| Thailand `corpus` (not public) | `MANIFEST.tsv` | 35 | 35 legislative | 17 in-force, 18 amended |
+| Thailand `corpus-specs` (not public) | `MANIFEST.tsv` | 14 | 9 commentary, 5 delegated | 11 in-force, 3 repealed |
+| Indonesia `corpus` (not public) | `MANIFEST.tsv` | 11 | 6 legislative, 5 delegated | 6 in-force, 5 amended |
 | [`../../aadhaar/corpus-acts`](../../aadhaar/corpus-acts) | `MANIFEST.tsv` | 121 | 121 legislative | 92 in-force, 26 not-yet-applicable, 2 read-down, 1 repealed |
 | [`../../aadhaar/corpus-delegated`](../../aadhaar/corpus-delegated) | `MANIFEST.tsv` | 10 | 9 delegated, 1 constitutional | 9 in-force, 1 not-yet-applicable |
 | [`../../aadhaar/corpus-judgments`](../../aadhaar/corpus-judgments) | `MANIFEST.tsv` | 3 | 3 judicial | 3 in-force |
 
-**The query path** is `lawcite --grep`, which is `lawcorpus.normalise.normalise_query` under `re.IGNORECASE`, so every count here is reproducible with the shipped tool: `/home/daniel/code/bakobo/id-law-kit/.venv/bin/lawcite --grep '<pattern>' --corpus <dir>`. **Case folding is insensitive throughout this file** unless a count says otherwise. Where a query digit had to reach a Thai-digit corpus, the fold is `normalise_query`'s numeral table, not a literal `rg`.
+**The query path** is `lawcite --grep`, which is `lawcorpus.normalise.normalise_query` under `re.IGNORECASE`, so every count here is reproducible with the shipped tool: `lawcite --grep '<pattern>' --corpus <dir>`. **Case folding is insensitive throughout this file** unless a count says otherwise. Where a query digit had to reach a Thai-digit corpus, the fold is `normalise_query`'s numeral table, not a literal `rg`.
 
 **Three caveats travel with the table.**
 
@@ -51,11 +51,11 @@ repo to create it. Retrying will not change this; change the input instead.
 
 So every Utah count below is `zcat | grep` over the three directories — 3,051 files — and carries no validity banner, because there is no validity field to print. The origin repo of this programme is the one repo its tooling cannot quote. Recorded as tick `~5t2g`.
 
-**`singapore-id`'s 20 items all carry the same `quotation_qualifier`:** *"SSO informal consolidation; s48 of the Interpretation Act 1965 does not apply to it, per SSO Terms of Use clause (8). The authoritative text is the printed Revised Edition."* Nothing quoted from Singapore below is the text that binds a court.
+**The Singapore corpus's 20 items all carry the same `quotation_qualifier`:** *"SSO informal consolidation; s48 of the Interpretation Act 1965 does not apply to it, per SSO Terms of Use clause (8). The authoritative text is the printed Revised Edition."* Nothing quoted from Singapore below is the text that binds a court.
 
 **And that qualifier does not print in search output**, which this comparison found by looking for it. `cite.py` emits an item's banners in `--grep` mode only when `quotable_as_current_law()` is false, so an `in-force` item's translation banner and `quotation_qualifier` are both suppressed — every Singapore grep hit prints without the SSO disclaimer, and Thailand's ETDA official English (`official-non-authoritative`, `in-force`) prints without its translation banner. Quote mode prints both correctly. Recorded as tick `~4j4t`; the banners in this file were obtained from the manifests and from `lawcite <item_id>`, not from the search output.
 
-**`indonesia-id` was being re-harvested while this was written.** Its figures and quotes are **as read at 2026-09-16T21:30 UTC, at HEAD `07e2f14`**. The `corpus/` tree did not change during the read, but the repo's prose did, twice.
+**The Indonesia corpus was being re-harvested while this was written.** Its figures and quotes are **as read at 2026-09-16T21:30 UTC, at HEAD `07e2f14`**. The `corpus/` tree did not change during the read, but the repo's prose did, twice.
 
 ---
 
@@ -149,7 +149,7 @@ PDPA 2012 s. 21(1), `PDPA2012`, `legislative`, `in-force`:
 
 > 21.—(1) Subject to subsections (2), (3) and (4), on request of an individual, an organisation must, as soon as reasonably possible, provide the individual with — (a) personal data about the individual that is in the possession or under the control of the organisation …
 
-Over `../singapore-id/corpus` (20 items): `reasonable.{0,20}doubt` → **0**, `evidence of identity` → **0**, `verify the identity of the` → **0**, `proof of identity` → **0**, `requester`/`requestor` → **0**/**0**, `access request` → **0**. Controls on the same 20 items: `identity` → 136 lines in 7 items, `verif` → 32 lines in 5 items. The tool works; the concept is not there.
+Over the Singapore corpus (20 items): `reasonable.{0,20}doubt` → **0**, `evidence of identity` → **0**, `verify the identity of the` → **0**, `proof of identity` → **0**, `requester`/`requestor` → **0**/**0**, `access request` → **0**. Controls on the same 20 items: `identity` → 136 lines in 7 items, `verif` → 32 lines in 5 items. The tool works; the concept is not there.
 
 The closest provision is in the delegated layer and is **collection, not verification** — `PDPA2012-S63-2021` (Personal Data Protection Regulations 2021), reg. 3(1), `delegated`, `in-force`:
 
@@ -157,7 +157,7 @@ The closest provision is in the delegated layer and is **collection, not verific
 
 The organisation must be *able to identify* the applicant from what the applicant supplies. It is not obliged to test the claim, and nothing bounds what it may ask for. This is `taxonomy.md` §1.1's fifth distinction — collection is not proofing — landing on the requester-verification axis.
 
-**This zero is strong because the layer where the duty would live is in the corpus and does not contain it.** The layer not searched is `regulatory-guidance`: the PDPC's advisory guidelines, which `singapore-id`'s README lists as absent and which are entirely unrepresented in the corpus (0 items at that tier). State it as *the Singapore corpus does not name this duty*, not as *Singapore law has none*.
+**This zero is strong because the layer where the duty would live is in the corpus and does not contain it.** The layer not searched is `regulatory-guidance`: the PDPC's advisory guidelines, which the Singapore corpus's README lists as absent and which are entirely unrepresented in the corpus (0 items at that tier). State it as *the Singapore corpus does not name this duty*, not as *Singapore law has none*.
 
 ### 2.2 Thailand — a weaker zero, and the statute says where the answer went
 
@@ -169,11 +169,11 @@ PDPA B.E. 2562, มาตรา ๓๐, `th-11029`, `legislative`, `in-force`, `
 
 The article says nothing about checking who is asking — and in its last paragraph it **expressly delegates the access-request rules to the PDPC**.
 
-Sweep over `../thailand-id/corpus` (35 items), restricted counts over `th-11029`: `พิสูจน์ตัวตน` → 0, `การพิสูจน์และยืนยันตัวตน` → 0, `ตรวจสอบตัวตน` → 0, `ยืนยันตัวตน` → **1**. Control: `เจ้าของข้อมูลส่วนบุคคล` → 34.
+Sweep over the Thailand corpus (35 items), restricted counts over `th-11029`: `พิสูจน์ตัวตน` → 0, `การพิสูจน์และยืนยันตัวตน` → 0, `ตรวจสอบตัวตน` → 0, `ยืนยันตัวตน` → **1**. Control: `เจ้าของข้อมูลส่วนบุคคล` → 34.
 
 **The 1 was read, and it is not a Q4 hit.** It falls in มาตรา ๒๖, inside the definition of ข้อมูลชีวภาพ — biometric data — *"ทำให้สามารถยืนยันตัวตนของบุคคลนั้นที่ไม่เหมือนกับบุคคลอื่นได้ เช่น ข้อมูลภาพจำลองใบหน้า ข้อมูลจำลองม่านตา หรือข้อมูลจำลองลายนิ้วมือ"* (my gloss: enabling that person's identity to be confirmed as distinct from others, such as facial-image, iris or fingerprint templates). It is a Q6 provision. Counting it as a Q4 hit would have produced the false positive; reading it produced a Q6 answer instead.
 
-**The layer not searched is not merely unharvested — it is unreachable by construction.** `thailand-id`'s README Known Gap 10 records that the `law_list` API behind the corpus carries 1,107 พระราชบัญญัติ and **zero** พระราชกฤษฎีกา, so the PDPA's กฎกระทรวง and the PDPC's own ประกาศ have no mechanical route into this corpus at all. Combine that with มาตรา ๓๐'s closing delegation and the honest statement is narrow: **the Thai statute does not impose a requester-verification duty and expressly empowers the Committee to write the access rules; whether it has done so is not answerable from this corpus.**
+**The layer not searched is not merely unharvested — it is unreachable by construction.** the Thailand corpus's README Known Gap 10 records that the `law_list` API behind the corpus carries 1,107 พระราชบัญญัติ and **zero** พระราชกฤษฎีกา, so the PDPA's กฎกระทรวง and the PDPC's own ประกาศ have no mechanical route into this corpus at all. Combine that with มาตรา ๓๐'s closing delegation and the honest statement is narrow: **the Thai statute does not impose a requester-verification duty and expressly empowers the Committee to write the access rules; whether it has done so is not answerable from this corpus.**
 
 The Royal Decree on Digital ID and มธอ. ๑๑-๒๕๖๖ do not fill the gap. They regulate identity-proofing and authentication *services* — a licensing perimeter, `compelled-identification` in the §1.2 direction vocabulary, not `requester-verification`.
 
@@ -187,13 +187,13 @@ UU 27/2022 is modelled on the GDPR closely enough that Chapter V's transfer ladd
 
 A channel, and nothing else. No doubt trigger, no additional-information power, no ceiling, no time limit tied to verification.
 
-Sweeps over `../indonesia-id/corpus` (11 items), as read at 2026-09-16T21:30 UTC, HEAD `07e2f14`. Zero for all of: `memastikan.{0,30}identitas`, `keraguan`, `bukti identitas`, `tanpa perlu`, `tidak wajib`, `tidak diwajibkan`, `tidak diharuskan`, `data tambahan`, `informasi tambahan`, `minimalisasi`, `mengonfirmasi`, `otentikasi`. Controls on `UU-27-2022`: `Subjek Data Pribadi` → 61, `Pengendali Data Pribadi` → 79, `permintaan` → 12.
+Sweeps over the Indonesia corpus (11 items), as read at 2026-09-16T21:30 UTC, HEAD `07e2f14`. Zero for all of: `memastikan.{0,30}identitas`, `keraguan`, `bukti identitas`, `tanpa perlu`, `tidak wajib`, `tidak diwajibkan`, `tidak diharuskan`, `data tambahan`, `informasi tambahan`, `minimalisasi`, `mengonfirmasi`, `otentikasi`. Controls on `UU-27-2022`: `Subjek Data Pribadi` → 61, `Pengendali Data Pribadi` → 79, `permintaan` → 12.
 
 **Two non-zeros, both read, both pointing the wrong way.** `verifikasi` → 1 in `UU-27-2022`, at Pasal 29(2), which obliges the controller to verify **the data**, not the requester — a GDPR Art. 5(1)(d) accuracy duty. `identitas` → 1, at Pasal 5, which gives the data subject the right to be told the identity of *whoever is asking for their data* — the mirror image of Q4, running from the controller to the subject.
 
 **And the competing design is informative.** The drafting attention in Chapter IV went into Pasal 15, an exemption list carving out defence, law enforcement, public administration, financial supervision and statistics — scope-carving, not requester authentication. `method.md` §3's rule that a legislature's alternative choice is evidence applies: Indonesia had the GDPR in front of it and spent its rights-chapter effort elsewhere.
 
-**Layer not searched:** UU 27/2022's implementing PP. `indonesia-id`'s README Known Gap 3 records that no implementing regulation was located, and instructs that this be treated as *not found* rather than *does not exist* — 11 of 6,976 national instruments are held, against a relevance-matching search endpoint. Neither Pasal 14 nor the rights chapter contains its own delegation clause, unlike Pasal 10(2), 12(2) and 13(3), so there is no lower layer earmarked for this question — but the general implementing regulation could still carry it.
+**Layer not searched:** UU 27/2022's implementing PP. The Indonesia corpus's README Known Gap 3 records that no implementing regulation was located, and instructs that this be treated as *not found* rather than *does not exist* — 11 of 6,976 national instruments are held, against a relevance-matching search endpoint. Neither Pasal 14 nor the rights chapter contains its own delegation clause, unlike Pasal 10(2), 12(2) and 13(3), so there is no lower layer earmarked for this question — but the general implementing regulation could still carry it.
 
 ### 2.4 India — absent, and not yet in force either way
 
@@ -250,7 +250,7 @@ The genuine Q4 duty is in the 省令 layer of two *other* statutes.
 
 **Two consequences.** Japan's answer sits entirely in delegated legislation; the Acts state the right and the ordinances state the check. And **no ceiling exists** — nothing in either ordinance bounds what may be demanded or requires the identification copy to be destroyed.
 
-**The layer not searched is named and is decisive.** 個人情報保護法 (APPI), Japan's general data-protection statute, **is not in this corpus** — `japan-id`'s README Known Gap 4 says so by name, and the corpus scope is the 番号法 / 住民基本台帳法 / 公的個人認証法 / J-LIS families. APPI carries Japan's general disclosure-request regime. So Japan's entry in the table below is the answer *for the identity-number statutes*, and the general answer is genuinely outside the harvested layer rather than merely unsearched.
+**The layer not searched is named and is decisive.** 個人情報保護法 (APPI), Japan's general data-protection statute, **is not in this corpus** — the Japan corpus's README Known Gap 4 says so by name, and the corpus scope is the 番号法 / 住民基本台帳法 / 公的個人認証法 / J-LIS families. APPI carries Japan's general disclosure-request regime. So Japan's entry in the table below is the answer *for the identity-number statutes*, and the general answer is genuinely outside the harvested layer rather than merely unsearched.
 
 ---
 
@@ -285,7 +285,7 @@ Four observations the table makes available.
 ## 5. What this finding does not establish
 
 - **Nothing about the four silent regimes' non-statutory layers.** PDPC advisory guidelines (Singapore), PDPC notifications (Thailand), the PDP implementing regulation (Indonesia) and the DPDP Rules as they will read in 2027 (India) are all unread here, and any of them could supply the duty.
-- **Nothing about APPI**, which is Japan's general data-protection statute and is outside `japan-id`'s scope by decision, not by oversight.
+- **Nothing about APPI**, which is Japan's general data-protection statute and is outside the Japan corpus's scope by decision, not by oversight.
 - **Nothing about enforcement.** Whether a "reasonable degree of certainty" or "reasonable doubts" means anything in practice is Q8, and no corpus in the programme holds a single enforcement decision. See [`q3-q5-q6-q8-what-nine-corpora-can-support.md`](q3-q5-q6-q8-what-nine-corpora-can-support.md).
 - **Nothing about national transpositions** of the GDPR or LED, which are absent from `eu-data-law` by declared scope and are where a Member State could add a ceiling the Directive omits.
 - **Nothing that turns on a term of art in translation.** Every non-English quotation above is authentic text; every English rendering of one is marked as my gloss and is not evidence.
