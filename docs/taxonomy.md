@@ -102,7 +102,7 @@ worth stating, because it is not silly: OpenID4VP adopted normatively by an EUDI
 not the same kind of document as an explanatory memorandum, and `commentary` files them together.
 
 The answer is that **incorporation by reference is a property of the citing instrument, not of the
-document.** The same OpenID4VP is operative in the EU and, in `japan-id/corpus-specs`, a document
+document.** The same OpenID4VP is operative in the EU and, in the Japan specifications corpus, a document
 with no legal force at all. A tier whose membership changes according to who is citing it cannot
 order a conflict, which is the one job this field has. And where a specification does bind, what
 binds is the implementing act's incorporation of it — and that act is already `delegated`, one rung

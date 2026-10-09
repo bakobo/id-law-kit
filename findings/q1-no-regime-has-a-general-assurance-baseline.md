@@ -1,8 +1,8 @@
 # No regime answers Q1 "yes" — and the three with a national identity number answer a different question instead
 
-*Cross-regime finding. Corpora read 2026-09-16 from the sibling checkouts named in [`q4-requester-verification-is-not-universal.md`](q4-requester-verification-is-not-universal.md) §0, which is the artefact list for this file too. Answers [`docs/questions.md`](../docs/questions.md) **Q1** — "is there a general identity-assurance baseline, or is assurance set interaction by interaction?"*
+*Cross-regime finding. Corpora read 2026-09-16 from the sibling checkouts named in [`q4-requester-verification-is-not-universal.md`](q4-requester-verification-is-not-universal.md) §0, which is the artefact list for this file too. The Japan, Singapore, Thailand and Indonesia corpora are not public; claims resting on them stand as read but cannot be re-run from a public checkout. Answers [`docs/questions.md`](../docs/questions.md) **Q1** — "is there a general identity-assurance baseline, or is assurance set interaction by interaction?"*
 
-`asia-id-strategy.md` §3 predicted that with Japan, Indonesia and India in the set, "for the first time the answer to Q1 may be *yes*". It is not. But the reason it is not is more useful than a yes would have been.
+With Japan, Indonesia and India in the set, it was reasonable to expect that for the first time the answer to Q1 might be *yes*. It is not. But the reason it is not is more useful than a yes would have been.
 
 **Conclusion, in five parts.**
 
@@ -57,7 +57,7 @@ A national number that nobody is obliged to verify is an assertion regime with a
 
 So: statute names the duty, Cabinet Order names the documents, ministerial ordinance names the equivalents. The same shape — a photo-document list at 省令 tier — recurs in the two other request procedures quoted in the Q4 finding. There is a de facto common floor in Japanese administrative practice; **no instrument in the corpus states it generally.**
 
-**Layer not searched:** 個人情報保護法 (APPI) is out of `japan-id`'s scope by decision, named in its README Known Gap 4. Japan's general data-protection duties, whatever they say about assurance, are not evidenced here.
+**Layer not searched:** 個人情報保護法 (APPI) is out of the Japan corpus's scope by decision, named in its README Known Gap 4. Japan's general data-protection duties, whatever they say about assurance, are not evidenced here.
 
 ---
 
@@ -90,9 +90,9 @@ So Indonesia has a **universal, compulsory, state-performed proofing event** fee
 
 **Three caveats, and the first is severe.**
 
-**Every one of these quotes is from an item the corpus marks `amended`, so none is quotable as current law.** The Adminduk family in `../indonesia-id/corpus` is `UU-23-2006` `amended`, `UU-24-2013` `amended`, `PP-40-2019` `amended` — there is no consolidated current text of Indonesian population-administration law in the corpus at all. `UU-24-2013` is the amending Act and is itself recorded `amended` on a `status_hukum` of `sebagian` with **no amending instrument in the source's own relation graph**, a conflict `indonesia-id`'s README documents and does not resolve. The substance is almost certainly still good — but this finding cannot say so from this corpus, and says instead that Indonesia's Q1 answer currently rests on text the programme's own machinery refuses to certify.
+**Every one of these quotes is from an item the corpus marks `amended`, so none is quotable as current law.** The Adminduk family in the Indonesia corpus is `UU-23-2006` `amended`, `UU-24-2013` `amended`, `PP-40-2019` `amended` — there is no consolidated current text of Indonesian population-administration law in the corpus at all. `UU-24-2013` is the amending Act and is itself recorded `amended` on a `status_hukum` of `sebagian` with **no amending instrument in the source's own relation graph**, a conflict the Indonesia corpus's README documents and does not resolve. The substance is almost certainly still good — but this finding cannot say so from this corpus, and says instead that Indonesia's Q1 answer currently rests on text the programme's own machinery refuses to certify.
 
-**The operative layer is a ministry regulation nobody can reach.** PP 40/2019 delegates the KTP-el recording-device standard and the reader specification to the Minister. Every `kemendagri.go.id` host black-holes the TCP SYN from this box; Permendagri 72/2022 is unread. `indonesia-id`'s README calls solving that egress "the single highest-value next step".
+**The operative layer is a ministry regulation nobody can reach.** PP 40/2019 delegates the KTP-el recording-device standard and the reader specification to the Minister. Every `kemendagri.go.id` host black-holes the TCP SYN from the harvesting host; Permendagri 72/2022 is unread. The Indonesia corpus's README calls solving that egress "the single highest-value next step".
 
 **Figures and quotes are as read at 2026-09-16T21:30 UTC, HEAD `07e2f14`**, while the repo was being re-harvested.
 
@@ -155,7 +155,7 @@ That is a real, mandatory, general-to-its-domain assurance requirement — and i
 
 ### 5.2 Thailand has taken the vocabulary into delegated legislation, and bound a licensing perimeter with it
 
-Thailand is the only regime in the programme whose delegated legislation carries a NIST-lineage assurance framework: มธอ. ๑๑-๒๕๖๖, `mtho-11-2566-vol1-th`, `authority_tier: delegated`, `in-force`, defines ระดับความน่าเชื่อถือของการพิสูจน์ตัวตน (IAL) and ระดับความน่าเชื่อถือของการยืนยันตัวตน (AAL) and, as `thailand-id/findings/03` establishes over 38,439 characters with stated case folding, **names no wire format at all**.
+Thailand is the only regime in the programme whose delegated legislation carries a NIST-lineage assurance framework: มธอ. ๑๑-๒๕๖๖, `mtho-11-2566-vol1-th`, `authority_tier: delegated`, `in-force`, defines ระดับความน่าเชื่อถือของการพิสูจน์ตัวตน (IAL) and ระดับความน่าเชื่อถือของการยืนยันตัวตน (AAL) and, as a finding written over the Thailand corpus (not public) establishes over 38,439 characters with stated case folding, **names no wire format at all**.
 
 **But the perimeter is a licence, not a population.** The Royal Decree's own title scopes it — "…that are Subject to Licensing" — and its s. 7, quoted from ETDA's official English `rd-did-2565-en` (`commentary`, `in-force`, `translation_status: official-non-authoritative`, `translation_of: rd-did-2565-th`; the Thai text is authentic and its *section numbers* are OCR-unreliable, which is why the English is used for the numbering):
 
@@ -187,7 +187,7 @@ California's entire assurance apparatus is the graded requester-verification sta
 
 ### 6.2 Singapore: a general reliability standard with no level in it, and a national ID scheme that regulates issuance only
 
-`assurance` returns 3 lines in 2 items across `../singapore-id/corpus`, all inside the ETA certification-authority regime — digital-signature reliability, not person-identity assurance. There is no IAL/AAL-shaped instrument anywhere in the corpus.
+`assurance` returns 3 lines in 2 items across the Singapore corpus, all inside the ETA certification-authority regime — digital-signature reliability, not person-identity assurance. There is no IAL/AAL-shaped instrument anywhere in the corpus.
 
 The nearest general provision is ETA 2010 s. 16O(1), `ETA2010`, `legislative`, `in-force`, which is open-textured by design:
 
@@ -209,7 +209,7 @@ That is IAL2-shaped language in a statute — and § 63A-20-302(7)(a) attaches a
 
 > The department may not require collection of information that is not necessary to verify identity or eligibility.
 
-**The two searchable mentions of SEDI in `../utah-id-law/findings/` are not about this chapter.** `fishing-license-probe.md:290` uses "SEDI" to mean the Bakobo programme — "For SEDI purposes the practical upshot is that Utah has **no general identity-assurance baseline** to inherit" — and `interaction-survey.md` lists SEDI only as a topic in a per-title table. Neither cites § 63A-20-303 or § 63A-20-302.
+**The two searchable mentions of SEDI in `../utah-id-law/findings/` are not about this chapter.** `fishing-license-probe.md:290` uses "SEDI" to mean the wider programme rather than the chapter — "For SEDI purposes the practical upshot is that Utah has **no general identity-assurance baseline** to inherit" — and `interaction-survey.md` lists SEDI only as a topic in a per-title table. Neither cites § 63A-20-303 or § 63A-20-302.
 
 **The conclusion survives, and the reasoning has to change.** Chapter 20 is not a general baseline: it governs the issuance of one opt-in credential, and the chapter expressly declines to compel its acceptance — a relying party "may accept a state-endorsed digital identity as proof of an individual's identity or identity attributes unless a different method of proof" is required. § 63A-20-601(3): "A relying party may accept a state-endorsed digital identity as proof of an individual's identity or identity attributes unless a different method of proof is required by law." So Utah still has no baseline for interactions. But "Utah has no general identity-assurance baseline to inherit" was written without the chapter that supplies precisely the proofing standard a SEDI programme would inherit, and the sentence should now read as being about *use*, not about *the standard*. Recorded as tick `~4hx6` in this repo's ledger, because the correction is owed by a repo this finding may not write to.
 

@@ -78,8 +78,8 @@ whose enabling statute has been partly struck down.
 Wallets, authorised agents, guardianship, agents acting for a principal, attestations derived from
 other attestations. The forward-looking question, and the one `eidas-eudi` exists to answer.
 
-Bakobo-adjacent, so watch the terminology rule: consult the glossary before using a Bakobo term of
-art, and do not let a general word masquerade as a formal one.
+The vocabulary here overlaps with credential-ecosystem terms of art, so define a specialised term on
+first use and do not let a general word masquerade as a formal one.
 
 ## Q8. What is the enforcement posture?
 
@@ -110,8 +110,8 @@ regime's repo.
 
 ## Current coverage
 
-*Nine corpora as of 2026-09-16. `japan-id`, `singapore-id`, `thailand-id` and `indonesia-id` were
-built on 2026-09-15/16 and the `aadhaar` corpus was rebuilt at provision-level granularity in the
+*Nine corpora as of 2026-09-16. The Japan, Singapore, Thailand and Indonesia corpora were built on
+2026-09-15/16 and are not public; the `aadhaar` corpus was rebuilt at provision-level granularity in the
 same window.*
 
 | | Q1 | Q2 | Q3 | Q4 | Q5 | Q6 | Q7 | Q8 |
@@ -120,10 +120,10 @@ same window.*
 | `eu-data-law` | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | — | ✖ |
 | `eidas-eudi` | ◐ | ◐ | ◐ | ✖ | — | ◐ | ◐ | ✖ |
 | `ccpa` | ◐ | ◐ | ◐ | ◐ | — | ◐ | ◐ | ✖ |
-| `japan-id` | ◐ | ◐ | ◐ | ◐ | ✖ | ✖ | ◐ | ✖ |
-| `singapore-id` | ◐ | ◐ | — | ◐ | ◐ | ✖ | ◐ | ✖ |
-| `thailand-id` | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ✖ |
-| `indonesia-id` | ◐ | ◐ | — | ◐ | ✅ | ◐ | — | ✖ |
+| Japan (not public) | ◐ | ◐ | ◐ | ◐ | ✖ | ✖ | ◐ | ✖ |
+| Singapore (not public) | ◐ | ◐ | — | ◐ | ◐ | ✖ | ◐ | ✖ |
+| Thailand (not public) | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ✖ |
+| Indonesia (not public) | ◐ | ◐ | — | ◐ | ✅ | ◐ | — | ✖ |
 | `aadhaar` | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ◐ | ✖ |
 | **`id-law-kit/findings`** (cross-regime) | **✅** | — | ◐ | **✅** | ◐ | ◐ | — | **✅** |
 
@@ -137,13 +137,13 @@ That is now a nine-for-nine finding rather than a suspicion, and for two regimes
 yet: India's Data Protection Board provisions do not commence until 13 May 2027, and Indonesia's
 Pasal 58 supervisory institution is not shown constituted in its corpus.
 
-**The Asian repos' `findings/` mostly answer a different spine.** `japan-id`, `singapore-id`,
-`thailand-id`, `indonesia-id` and `aadhaar` were built against `asia-id-strategy.md` §3's Q9–Q14 —
+**The Asian corpora's own findings mostly answer a different spine.** The Japan, Singapore,
+Thailand, Indonesia and `aadhaar` corpora were built against a separate question set, Q9–Q14 —
 credential stack, trust infrastructure, extraterritorial verification, relying-party gates, ACDC
 derivation, machine-readability — so their written findings do not fill this table even where the
-corpus plainly supports a Q1–Q8 answer. The one exception is
-`indonesia-id/findings/pdp-law-cross-border-transfer-is-a-three-step-ladder.md`, which is a Q5
-finding in everything but name.
+corpus plainly supports a Q1–Q8 answer. The one exception is a single-regime finding over the
+Indonesia corpus on the PDP Law's three-step cross-border transfer ladder, which is a Q5 finding in
+everything but name.
 
 **Cross-regime findings live in [`../findings/`](../findings):**
 
